@@ -11,8 +11,7 @@ struct Game {
 impl Game {
     fn parse(s: &str) -> Self {
         let (game, game_data) = s.split_once(": ").unwrap();
-        let game_split = game.split_once(' ').unwrap();
-        let id = game_split.1.parse::<u32>().unwrap();
+        let id = game.strip_prefix("Game ").unwrap().parse::<u32>().unwrap();
         let sets = game_data.split("; ").map(GameSet::parse);
         let mut red = 0;
         let mut green = 0;
