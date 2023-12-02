@@ -27,18 +27,18 @@ fn check_letters(line: &str) -> Option<u32> {
 }
 
 fn proc_line(line: &str, words: bool) -> u32 {
-    let mut tmp = line;
+    let mut line = line;
     let mut store = vec![];
-    while !tmp.is_empty() {
-        if let Some(d) = check_digit(tmp) {
+    while !line.is_empty() {
+        if let Some(d) = check_digit(line) {
             store.push(d);
         } else if words {
-            if let Some(d) = check_letters(tmp) {
+            if let Some(d) = check_letters(line) {
                 store.push(d);
             }
         }
 
-        tmp = &tmp[1..];
+        line = &line[1..];
     }
     store.first().unwrap() * 10 + store.last().unwrap()
 }
