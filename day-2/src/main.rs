@@ -13,9 +13,7 @@ impl Game {
         let (game, game_data) = s.split_once(": ").unwrap();
         let game_split = game.split_once(' ').unwrap();
         let id = game_split.1.parse::<u32>().unwrap();
-        let sets = game_data
-            .split("; ")
-            .map(GameSet::parse);
+        let sets = game_data.split("; ").map(GameSet::parse);
         let mut red = 0;
         let mut green = 0;
         let mut blue = 0;
@@ -34,6 +32,10 @@ impl Game {
 
     fn check(&self, red: u32, green: u32, blue: u32) -> bool {
         self.red <= red && self.green <= green && self.blue <= blue
+    }
+
+    fn power(&self) -> u32 {
+        self.red * self.green * self.blue
     }
 }
 
@@ -71,6 +73,9 @@ fn main() {
 
     let answer_one = proc(&data, 12, 13, 14);
     println!("Day 2 part one: {answer_one}");
+
+    let answer_two = proc_2(&data);
+    println!("Day 2 part two: {answer_two}");
 }
 
 fn proc(data: &str, red: u32, green: u32, blue: u32) -> u32 {
@@ -86,6 +91,10 @@ fn proc_line(line: &str, red: u32, green: u32, blue: u32) -> u32 {
     }
 }
 
+fn proc_2(data: &str) -> u32 {
+    data.lines().map(|line| Game::parse(line).power()).sum()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -98,7 +107,8 @@ mod tests {
         assert_eq!(game.red, 4);
         assert_eq!(game.green, 2);
         assert_eq!(game.blue, 6);
-        assert!(game.check(4, 2, 6))
+        assert!(game.check(4, 2, 6));
+        assert_eq!(game.power(), 48);
     }
 
     #[test]
@@ -106,5 +116,8 @@ mod tests {
         let data = fs::read_to_string("data/day-2-test.txt").unwrap();
         let res = proc(&data, 12, 13, 14);
         assert_eq!(res, 8);
+
+        let res_2 = proc_2(&data);
+        assert_eq!(res_2, 2286);
     }
 }
