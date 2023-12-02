@@ -7,10 +7,10 @@ const DIGITS: &[&str] = &[
 fn main() {
     let data = fs::read_to_string("data/day-1-input.txt").unwrap();
     let answer_1 = proc(&data, false);
-    println!("Day 1 part 1: {answer_1}");
+    println!("Day 1 part one: {answer_1}");
 
     let answer_2 = proc(&data, true);
-    println!("Day 1 part 2: {answer_2}");
+    println!("Day 1 part two: {answer_2}");
 }
 
 fn check_digit(line: &str) -> Option<u32> {
