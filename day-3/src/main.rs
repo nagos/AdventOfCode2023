@@ -69,9 +69,7 @@ fn data_parser(input: &str) -> (Vec<Digits>, Vec<Symbols>) {
             }
             ParserState::Symbol => {
                 symbols.push(Symbols { x, y });
-                if *c != '.' {
-                    state = ParserState::Start;
-                }
+                state = ParserState::Start;
             }
         }
         if !repeat {
