@@ -5,6 +5,10 @@ fn main() {
     let (digits, symbols) = data_parser(&data);
     let res = find_items(digits, symbols);
     println!("Day 3 part one: {res}");
+
+    let (digits, symbols) = data_parser(&data);
+    let res = find_gears(digits, symbols);
+    println!("Day 3 part two: {res}");
 }
 
 #[derive(Debug)]
@@ -26,6 +30,7 @@ struct Digits {
 struct Symbols {
     x: u32,
     y: u32,
+    gear: bool,
 }
 
 fn data_parser(input: &str) -> (Vec<Digits>, Vec<Symbols>) {
@@ -68,7 +73,8 @@ fn data_parser(input: &str) -> (Vec<Digits>, Vec<Symbols>) {
                 }
             }
             ParserState::Symbol => {
-                symbols.push(Symbols { x, y });
+                let gear = *c == '*';
+                symbols.push(Symbols { x, y, gear });
                 state = ParserState::Start;
             }
         }
@@ -90,19 +96,31 @@ fn find_items(digits: Vec<Digits>, symbols: Vec<Symbols>) -> u32 {
     let mut ret = 0;
     for d in digits {
         for s in &symbols {
-            // left - right from symbol
-            if d.y == s.y && (d.x_end + 1 == s.x || d.x == s.x + 1) {
+            if d.y + 1 >= s.y && d.y <= s.y + 1 && s.x + 1 >= d.x && s.x <= d.x_end + 1 {
                 ret += d.value;
                 break;
             }
-            // up - down
-            if s.y != 0
-                && (d.y + 1 >= s.y && d.y <= s.y + 1)
-                && (s.x + 1 >= d.x && s.x <= d.x_end + 1)
-            {
-                ret += d.value;
-                break;
+        }
+    }
+    ret
+}
+
+fn find_gears(digits: Vec<Digits>, symbols: Vec<Symbols>) -> u32 {
+    let mut ret = 0;
+    for s in symbols {
+        let mut adjacent = 0;
+        let mut gear_ratio = 1;
+        if !s.gear {
+            continue;
+        }
+        for d in &digits {
+            if d.y + 1 >= s.y && d.y <= s.y + 1 && s.x + 1 >= d.x && s.x <= d.x_end + 1 {
+                adjacent += 1;
+                gear_ratio *= d.value;
             }
+        }
+        if adjacent == 2 {
+            ret += gear_ratio;
         }
     }
     ret
@@ -118,5 +136,14 @@ mod tests {
         let (digits, symbols) = data_parser(&data);
         let res = find_items(digits, symbols);
         assert_eq!(res, 4361);
+    }
+
+    #[test]
+    fn test_parse_part_two() {
+        let data = fs::read_to_string("data/test.txt").unwrap();
+
+        let (digits, symbols) = data_parser(&data);
+        let res = find_gears(digits, symbols);
+        assert_eq!(res, 467835);
     }
 }
