@@ -10,10 +10,10 @@ use std::iter::FromIterator;
 fn main() {
     let data = fs::read_to_string("data/input.txt").unwrap();
     let total = proc_one(&data);
-    println!("Day 4 tart one: {total}");
+    println!("Day 4 part one: {total}");
 
     let total = proc_two(&data);
-    println!("Day 4 tart two: {total}");
+    println!("Day 4 part two: {total}");
 }
 
 fn digit1_padded(input: &str) -> IResult<&str, u32> {
