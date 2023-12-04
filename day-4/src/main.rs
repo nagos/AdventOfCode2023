@@ -9,8 +9,11 @@ use std::iter::FromIterator;
 
 fn main() {
     let data = fs::read_to_string("data/input.txt").unwrap();
-    let total = proc(&data);
+    let total = proc_one(&data);
     println!("Day 4 tart one: {total}");
+
+    let total = proc_two(&data);
+    println!("Day 4 tart two: {total}");
 }
 
 fn digit1_padded(input: &str) -> IResult<&str, u32> {
@@ -29,27 +32,47 @@ fn parse_line(input: &str) -> IResult<&str, (u32, Vec<u32>, Vec<u32>)> {
     Ok((input, (card_id, numbers_winning, numbers_have)))
 }
 
-fn calc_points(numbers_have: Vec<u32>, numbers_winning: Vec<u32>) -> u32 {
+fn check_winning(numbers_have: Vec<u32>, numbers_winning: Vec<u32>) -> u32 {
     let have: HashSet<u32> = HashSet::from_iter(numbers_have);
     let winning: HashSet<u32> = HashSet::from_iter(numbers_winning);
     let intersect = have.intersection(&winning);
-    let count = intersect.count();
+    intersect.count() as u32
+}
 
-    match count as u32 {
+fn calc_score(count: u32) -> u32 {
+    match count {
         0 => 0,
         x => 2_u32.pow(x - 1),
     }
 }
 
-fn proc(data: &str) -> u32 {
-    let mut ret = 0;
-    for input in data.lines() {
-        let (_, (_card_id, numbers_winning, numbers_have)) = parse_line(input).unwrap();
-        let score = calc_points(numbers_have, numbers_winning);
-        ret += score;
+fn proc_one(data: &str) -> u32 {
+    data.lines()
+        .map(|line| {
+            let (_card_id, numbers_winning, numbers_have) = parse_line(line).unwrap().1;
+            calc_score(check_winning(numbers_have, numbers_winning))
+        })
+        .sum()
+}
+
+fn proc_two(data: &str) -> u32 {
+    let mut cards = data
+        .lines()
+        .map(|line| {
+            let (_card_id, numbers_winning, numbers_have) = parse_line(line).unwrap().1;
+            (1, check_winning(numbers_have, numbers_winning))
+        })
+        .collect::<Vec<(u32, u32)>>();
+
+    for i in 0..cards.len() {
+        let count = cards[i].0;
+        let winning = cards[i].1;
+        for q in 0..winning {
+            cards[i + 1 + q as usize].0 += count;
+        }
     }
 
-    ret
+    cards.iter().map(|card| card.0).sum()
 }
 
 #[cfg(test)]
@@ -64,7 +87,7 @@ mod tests {
         assert_eq!(numbers_winning, vec![41, 48, 83, 86, 17]);
         assert_eq!(numbers_have, vec![83, 86, 6, 31, 17, 9, 48, 53]);
 
-        let score = calc_points(numbers_have, numbers_winning);
+        let score = calc_score(check_winning(numbers_have, numbers_winning));
         assert_eq!(score, 8);
     }
 
@@ -81,7 +104,7 @@ mod tests {
     #[test]
     fn test_file() {
         let data = fs::read_to_string("data/test.txt").unwrap();
-        let total = proc(&data);
+        let total = proc_one(&data);
         assert_eq!(total, 13);
     }
 
@@ -91,5 +114,12 @@ mod tests {
         let (input, value) = digit1_padded(data).unwrap();
         assert!(input.is_empty());
         assert_eq!(value, 123);
+    }
+
+    #[test]
+    fn test_part_two() {
+        let data = fs::read_to_string("data/test.txt").unwrap();
+        let total = proc_two(&data);
+        assert_eq!(total, 30);
     }
 }
