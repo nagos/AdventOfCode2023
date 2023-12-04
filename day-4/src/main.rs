@@ -21,7 +21,7 @@ fn digit1_padded(input: &str) -> IResult<&str, u32> {
     map_res(digit1, |s: &str| s.parse::<u32>())(input)
 }
 
-fn parse_line(input: &str) -> IResult<&str, (u32, Vec<u32>, Vec<u32>)> {
+fn line_parser(input: &str) -> IResult<&str, (u32, Vec<u32>, Vec<u32>)> {
     let (input, _) = tag("Card ")(input)?;
     let (input, card_id) = digit1_padded(input)?;
     let (input, _) = tag(": ")(input)?;
@@ -32,11 +32,14 @@ fn parse_line(input: &str) -> IResult<&str, (u32, Vec<u32>, Vec<u32>)> {
     Ok((input, (card_id, numbers_winning, numbers_have)))
 }
 
-fn check_winning(numbers_have: Vec<u32>, numbers_winning: Vec<u32>) -> u32 {
+fn parse_line(input: &str) -> (u32, Vec<u32>, Vec<u32>) {
+    line_parser(input).unwrap().1
+}
+
+fn get_matches(numbers_have: Vec<u32>, numbers_winning: Vec<u32>) -> u32 {
     let have: HashSet<u32> = HashSet::from_iter(numbers_have);
     let winning: HashSet<u32> = HashSet::from_iter(numbers_winning);
-    let intersect = have.intersection(&winning);
-    intersect.count() as u32
+    have.intersection(&winning).count() as u32
 }
 
 fn calc_score(count: u32) -> u32 {
@@ -48,27 +51,23 @@ fn calc_score(count: u32) -> u32 {
 
 fn proc_one(data: &str) -> u32 {
     data.lines()
-        .map(|line| {
-            let (_card_id, numbers_winning, numbers_have) = parse_line(line).unwrap().1;
-            calc_score(check_winning(numbers_have, numbers_winning))
-        })
+        .map(parse_line)
+        .map(|(_, have, winning)| get_matches(have, winning))
+        .map(calc_score)
         .sum()
 }
 
 fn proc_two(data: &str) -> u32 {
     let mut cards = data
         .lines()
-        .map(|line| {
-            let (_card_id, numbers_winning, numbers_have) = parse_line(line).unwrap().1;
-            (1, check_winning(numbers_have, numbers_winning))
-        })
+        .map(parse_line)
+        .map(|(_, have, winning)| (1, get_matches(have, winning)))
         .collect::<Vec<(u32, u32)>>();
 
     for i in 0..cards.len() {
-        let count = cards[i].0;
-        let winning = cards[i].1;
-        for q in 0..winning {
-            cards[i + 1 + q as usize].0 += count;
+        let (count, winning) = cards[i];
+        for q in 1..=winning {
+            cards[i + q as usize].0 += count;
         }
     }
 
@@ -81,20 +80,20 @@ mod tests {
     #[test]
     fn test_parse() {
         let data = "Card 1: 41 48 83 86 17 | 83 86  6 31 17  9 48 53";
-        let (input, (card_id, numbers_winning, numbers_have)) = parse_line(data).unwrap();
+        let (input, (card_id, numbers_winning, numbers_have)) = line_parser(data).unwrap();
         assert!(input.is_empty());
         assert_eq!(card_id, 1);
         assert_eq!(numbers_winning, vec![41, 48, 83, 86, 17]);
         assert_eq!(numbers_have, vec![83, 86, 6, 31, 17, 9, 48, 53]);
 
-        let score = calc_score(check_winning(numbers_have, numbers_winning));
+        let score = calc_score(get_matches(numbers_have, numbers_winning));
         assert_eq!(score, 8);
     }
 
     #[test]
     fn test_parse_space() {
         let data = "Card 3:  1 21 53 59 44 | 69 82 63 72 16 21 14  1";
-        let (input, (card_id, numbers_winning, numbers_have)) = parse_line(data).unwrap();
+        let (input, (card_id, numbers_winning, numbers_have)) = line_parser(data).unwrap();
         assert!(input.is_empty());
         assert_eq!(card_id, 3);
         assert_eq!(numbers_winning, vec![1, 21, 53, 59, 44]);
