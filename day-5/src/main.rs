@@ -139,17 +139,17 @@ fn split_range(
 }
 
 fn convert_seed_range(seed_range: Vec<SeedRange>, table: &Vec<TableItem>) -> Vec<SeedRange> {
-    let ret = seed_range.clone();
+    let mut ret = seed_range.clone();
     let mut tmp = vec![];
-    for i in ret {
+    while let Some(i) = ret.pop() {
         let mut split = false;
         for t in table {
             let (left, center, right) = split_range(i, t);
             if let Some(x) = left {
-                tmp.push(x);
+                ret.push(x);
             }
             if let Some(x) = right {
-                tmp.push(x);
+                ret.push(x);
             }
             if let Some(x) = center {
                 let a = x.0 - t.1 + t.0;
@@ -316,12 +316,12 @@ mod tests {
         let res = split_range((15, 34), &(0, 15, 10));
         assert_eq!(res, (None, Some((15, 24)), Some((25, 34))));
 
-        // 15 
+        // 15
         // 15 24
         let res = split_range((15, 15), &(0, 15, 10));
         assert_eq!(res, (None, Some((15, 15)), None));
 
-        //    24 
+        //    24
         // 15 24
         let res = split_range((24, 24), &(0, 15, 10));
         assert_eq!(res, (None, Some((24, 24)), None));
@@ -330,7 +330,6 @@ mod tests {
         //   15 24
         let res = split_range((0, 30), &(0, 15, 10));
         assert_eq!(res, (Some((0, 14)), Some((15, 24)), Some((25, 30))));
-
     }
 
     #[test]
@@ -348,5 +347,7 @@ mod tests {
         assert_eq!(res, vec![(45, 45)]);
         let res = convert_seed_range(res, &vec![(0, 69, 1), (1, 0, 69)]);
         assert_eq!(res, vec![(46, 46)]);
+        let res = convert_seed_range(vec![(0, 9)], &vec![(20, 0, 5), (30, 5, 5)]);
+        assert_eq!(res, vec![(20, 24), (30, 34)]);
     }
 }
