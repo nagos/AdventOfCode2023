@@ -1,4 +1,4 @@
-use std::{fs, str::FromStr};
+use std::fs;
 
 use nom::{
     bytes::complete::tag,
@@ -16,33 +16,7 @@ fn main() {
 }
 
 type TableItem = (u32, u32, u32);
-type MapBlock = (Header, Vec<TableItem>);
-
-#[derive(Debug)]
-enum Header {
-    SoilToFertilizer,
-    FertilizerToWater,
-    WaterToLight,
-    LightToTemperature,
-    TemperatureToHumidity,
-    HumidityToLocatiom,
-}
-
-impl FromStr for Header {
-    type Err = anyhow::Error;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "seed-to-soil map:" => Ok(Header::SoilToFertilizer),
-            "soil-to-fertilizer map:" => Ok(Header::FertilizerToWater),
-            "fertilizer-to-water map:" => Ok(Header::FertilizerToWater),
-            "water-to-light map:" => Ok(Header::WaterToLight),
-            "light-to-temperature map:" => Ok(Header::LightToTemperature),
-            "temperature-to-humidity map:" => Ok(Header::TemperatureToHumidity),
-            "humidity-to-location map:" => Ok(Header::HumidityToLocatiom),
-            &_ => Err(anyhow::anyhow!("Header parse error")),
-        }
-    }
-}
+type MapBlock = Vec<TableItem>;
 
 fn digit1_u32(input: &str) -> IResult<&str, u32> {
     map_res(digit1, |s: &str| s.parse::<u32>())(input)
@@ -63,10 +37,10 @@ fn map_item_parser(input: &str) -> IResult<&str, TableItem> {
 }
 
 fn block_parser(input: &str) -> IResult<&str, MapBlock> {
-    let (input, header) = map_res(terminated(not_line_ending, newline), Header::from_str)(input)?;
+    let (input, _) = terminated(not_line_ending, newline)(input)?;
     let (input, data) = separated_list1(newline, map_item_parser)(input)?;
 
-    Ok((input, (header, data)))
+    Ok((input, data))
 }
 
 fn block_list_parser(input: &str) -> IResult<&str, Vec<MapBlock>> {
@@ -114,7 +88,7 @@ fn match_items(items: Vec<u32>, table: Vec<TableItem>) -> Vec<u32> {
 
 fn convert_seeds(seeds: Vec<u32>, blocks: Vec<MapBlock>) -> Vec<u32> {
     let mut items = seeds;
-    for (_, block) in blocks {
+    for block in blocks {
         items = match_items(items, block);
     }
 
