@@ -11,7 +11,7 @@ use nom::{
 
 fn main() {
     let data = fs::read_to_string("data/input.txt").unwrap();
-    let part_one = proc(&data);
+    let part_one = proc_1(&data);
     println!("Day 5 part one: {part_one}");
 
     let part_two = proc_2(&data);
@@ -60,25 +60,21 @@ fn map_parser(input: &str) -> IResult<&str, (Vec<u32>, Vec<MapBlock>)> {
     Ok((input, (seeds, blocks)))
 }
 
+// part one
+
 fn convert_item(item: u32, table: TableItem) -> Option<u32> {
     let (dst_start, src_start, len) = table;
 
     // Trick to get around integer overflow
-    if item >= src_start {
-        let offset = item - src_start;
-        if offset < len {
-            Some(dst_start + offset)
-        } else {
-            None
-        }
+    if item >= src_start && item - src_start < len {
+        Some(item - src_start + dst_start)
     } else {
         None
     }
 }
 
-fn match_items(items: Vec<u32>, table: Vec<TableItem>) -> Vec<u32> {
-    let mut ret = items.clone();
-    for i in &mut ret {
+fn match_items(seeds: &mut Vec<u32>, table: Vec<TableItem>) {
+    for i in seeds {
         for t in &table {
             if let Some(res) = convert_item(*i, *t) {
                 *i = res;
@@ -86,107 +82,80 @@ fn match_items(items: Vec<u32>, table: Vec<TableItem>) -> Vec<u32> {
             }
         }
     }
-
-    ret
 }
 
-fn convert_seeds(seeds: Vec<u32>, blocks: Vec<MapBlock>) -> Vec<u32> {
-    let mut items = seeds;
+fn proc_1(data: &str) -> u32 {
+    let (_, (mut seeds, blocks)) = map_parser(data).unwrap();
     for block in blocks {
-        items = match_items(items, block);
+        match_items(&mut seeds, block);
     }
-
-    items
+    *seeds.iter().min().unwrap()
 }
 
-fn proc(data: &str) -> u32 {
-    let (_, (seeds, blocks)) = map_parser(data).unwrap();
-    let res = convert_seeds(seeds, blocks);
-    *res.iter().min().unwrap()
-}
+// part two
 
-fn split_range(
-    seed_range: SeedRange,
-    table: &TableItem,
-) -> (Option<SeedRange>, Option<SeedRange>, Option<SeedRange>) {
+fn split_range(seed_range: SeedRange, table: &TableItem) -> (Option<SeedRange>, Vec<SeedRange>) {
     let src_range = (table.1, table.1 + (table.2 - 1));
     let is_intersect = seed_range.0 <= src_range.1 && seed_range.1 >= src_range.0;
 
-    let left;
-    let center;
-    let right;
-    if is_intersect {
+    let mut splits = vec![];
+    let center = if is_intersect {
         if seed_range.0 < src_range.0 {
-            left = Some((seed_range.0, src_range.0 - 1));
-        } else {
-            left = None
+            splits.push((seed_range.0, src_range.0 - 1));
         }
 
         if seed_range.1 > src_range.1 {
-            right = Some((src_range.1 + 1, seed_range.1));
-        } else {
-            right = None;
+            splits.push((src_range.1 + 1, seed_range.1));
         }
 
-        center = Some((seed_range.0.max(src_range.0), seed_range.1.min(src_range.1)));
+        Some((seed_range.0.max(src_range.0), seed_range.1.min(src_range.1)))
     } else {
-        left = None;
-        center = None;
-        right = None;
-    }
+        None
+    };
 
-    (left, center, right)
+    (center, splits)
 }
 
 fn convert_seed_range(seed_range: Vec<SeedRange>, table: &Vec<TableItem>) -> Vec<SeedRange> {
-    let mut ret = seed_range.clone();
-    let mut tmp = vec![];
-    while let Some(i) = ret.pop() {
+    let mut tmp = seed_range;
+    let mut ret = vec![];
+    while let Some(i) = tmp.pop() {
         let mut split = false;
         for t in table {
-            let (left, center, right) = split_range(i, t);
-            if let Some(x) = left {
-                ret.push(x);
-            }
-            if let Some(x) = right {
-                ret.push(x);
-            }
+            let (center, splits) = split_range(i, t);
+            tmp.extend(splits);
             if let Some(x) = center {
-                let a = x.0 - t.1 + t.0;
-                let b = x.1 - t.1 + t.0;
-                tmp.push((a, b));
+                ret.push((x.0 - t.1 + t.0, x.1 - t.1 + t.0));
                 split = true;
                 break;
             }
         }
         if !split {
-            tmp.push(i);
+            ret.push(i);
         }
     }
-    tmp
+    ret
 }
 
 fn proc_2(data: &str) -> u32 {
     let (_, (seeds, blocks)) = map_parser(data).unwrap();
 
-    let mut seed_ranges = vec![];
+    let mut seed_ranges = seeds
+        .chunks(2)
+        .map(|c| (c[0], c[0] + c[1] - 1))
+        .collect::<Vec<SeedRange>>();
 
-    for i in 0..seeds.len() / 2 {
-        seed_ranges.push((seeds[i * 2], seeds[i * 2] + seeds[i * 2 + 1] - 1));
+    for table in &blocks {
+        seed_ranges = convert_seed_range(seed_ranges, table);
     }
 
-    let mut tmp = seed_ranges.clone();
-
-    for block in &blocks {
-        tmp = convert_seed_range(tmp, block);
-    }
-    tmp.iter().map(|e| e.0).min().unwrap()
+    seed_ranges.iter().map(|r| r.0).min().unwrap()
 }
 
 #[cfg(test)]
 mod tests {
-    use std::vec;
     use super::*;
+    use std::vec;
 
     #[test]
     fn test_seeds_parser() {
@@ -195,17 +164,6 @@ mod tests {
         let (input, seeds) = seeds_parser(data).unwrap();
         assert!(input.is_empty());
         assert_eq!(seeds, vec![79, 14, 55, 13]);
-    }
-
-    #[test]
-    fn test_parser_file() {
-        let data = fs::read_to_string("data/test.txt").unwrap();
-        let (input, (seeds, blocks)) = map_parser(&data).unwrap();
-        assert!(input.is_empty());
-        assert_eq!(seeds, vec![79, 14, 55, 13]);
-        assert_eq!(blocks.len(), 7);
-        let res = convert_seeds(seeds, blocks);
-        assert_eq!(res, vec![82, 43, 86, 35]);
     }
 
     #[test]
@@ -256,7 +214,7 @@ mod tests {
     #[test]
     fn test_proc_1() {
         let data = fs::read_to_string("data/test.txt").unwrap();
-        let res = proc(&data);
+        let res = proc_1(&data);
         assert_eq!(res, 35);
     }
 
@@ -272,12 +230,12 @@ mod tests {
         let r = (79, 79 + 14 - 1);
         let table = (50, 98, 2);
         let res = split_range(r, &table);
-        assert_eq!(res, (None, None, None));
+        assert_eq!(res, (None, vec![]));
 
         let r = (79, 79 + 14 - 1);
         let table = (52, 50, 48);
         let res = split_range(r, &table);
-        assert_eq!(res, (None, Some((79, 92)), None));
+        assert_eq!(res, (Some((79, 92)), vec![]));
 
         let r = (55, 55 + 13 - 1);
         let table = (50, 98, 2);
@@ -289,47 +247,47 @@ mod tests {
         // 10    20
         //    15    24
         let res = split_range((10, 20), &(0, 15, 10));
-        assert_eq!(res, (Some((10, 14)), Some((15, 20)), None));
+        assert_eq!(res, (Some((15, 20)), vec![(10, 14)]));
 
         // 10       25
         //    15 24
         let res = split_range((10, 25), &(0, 15, 10));
-        assert_eq!(res, (Some((10, 14)), Some((15, 24)), Some((25, 25))));
+        assert_eq!(res, (Some((15, 24)), vec![(10, 14), (25, 25)]));
 
         // 10    24
         //    15 24
         let res = split_range((10, 24), &(0, 15, 10));
-        assert_eq!(res, (Some((10, 14)), Some((15, 24)), None));
+        assert_eq!(res, (Some((15, 24)), vec![(10, 14)]));
 
         // 15 24
         // 15 24
         let res = split_range((15, 24), &(0, 15, 10));
-        assert_eq!(res, (None, Some((15, 24)), None));
+        assert_eq!(res, (Some((15, 24)), vec![]));
 
         // 15 24
         // 15     34
         let res = split_range((15, 24), &(0, 15, 20));
-        assert_eq!(res, (None, Some((15, 24)), None));
+        assert_eq!(res, (Some((15, 24)), vec![]));
 
         // 15    34
         // 15 24
         let res = split_range((15, 34), &(0, 15, 10));
-        assert_eq!(res, (None, Some((15, 24)), Some((25, 34))));
+        assert_eq!(res, (Some((15, 24)), vec![(25, 34)]));
 
         // 15
         // 15 24
         let res = split_range((15, 15), &(0, 15, 10));
-        assert_eq!(res, (None, Some((15, 15)), None));
+        assert_eq!(res, (Some((15, 15)), vec![]));
 
         //    24
         // 15 24
         let res = split_range((24, 24), &(0, 15, 10));
-        assert_eq!(res, (None, Some((24, 24)), None));
+        assert_eq!(res, (Some((24, 24)), vec![]));
 
         // 0       30
         //   15 24
         let res = split_range((0, 30), &(0, 15, 10));
-        assert_eq!(res, (Some((0, 14)), Some((15, 24)), Some((25, 30))));
+        assert_eq!(res, (Some((15, 24)), vec![(0, 14), (25, 30)]));
     }
 
     #[test]
