@@ -254,6 +254,13 @@ mod tests {
     }
 
     #[test]
+    fn test_proc_1() {
+        let data = fs::read_to_string("data/test.txt").unwrap();
+        let res = proc(&data);
+        assert_eq!(res, 35);
+    }
+
+    #[test]
     fn test_proc_2() {
         let data = fs::read_to_string("data/test.txt").unwrap();
         let res = proc_2(&data);
