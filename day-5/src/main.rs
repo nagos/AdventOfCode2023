@@ -4,7 +4,7 @@ use nom::{
     bytes::complete::tag,
     character::complete::{digit1, newline, not_line_ending, space1},
     combinator::map_res,
-    multi::{separated_list1, many0, many1},
+    multi::{many0, many1, separated_list1},
     IResult,
 };
 
@@ -85,7 +85,11 @@ fn apply_transform(seed: u32, blocks: &Vec<Vec<TableItem>>) -> u32 {
 fn proc_1(data: &str) -> u32 {
     let (_, (seeds, blocks)) = map_parser(data).unwrap();
 
-    seeds.into_iter().map(|s| apply_transform(s, &blocks)).min().unwrap()
+    seeds
+        .into_iter()
+        .map(|s| apply_transform(s, &blocks))
+        .min()
+        .unwrap()
 }
 
 // part two
@@ -95,7 +99,7 @@ fn split_range(seed_range: SeedRange, table: &TableItem) -> (Option<SeedRange>, 
     let is_intersect = seed_range.0 <= src_range.1 && seed_range.1 >= src_range.0;
 
     let mut splits = vec![];
-    let center = if is_intersect {
+    let intersect = if is_intersect {
         if seed_range.0 < src_range.0 {
             splits.push((seed_range.0, src_range.0 - 1));
         }
@@ -109,25 +113,28 @@ fn split_range(seed_range: SeedRange, table: &TableItem) -> (Option<SeedRange>, 
         None
     };
 
-    (center, splits)
+    (intersect, splits)
 }
 
-fn convert_seed_range(seed_range: Vec<SeedRange>, table: &Vec<TableItem>) -> Vec<SeedRange> {
-    let mut tmp = seed_range;
-    let mut ret = vec![];
-    while let Some(i) = tmp.pop() {
-        let mut split = false;
-        for t in table {
-            let (center, splits) = split_range(i, t);
-            tmp.extend(splits);
-            if let Some(x) = center {
-                ret.push((x.0 - t.1 + t.0, x.1 - t.1 + t.0));
-                split = true;
-                break;
+fn convert_seed_range(seed_range: SeedRange, blocks: &Vec<Vec<TableItem>>) -> Vec<SeedRange> {
+    let mut ret = vec![seed_range];
+    for block in blocks {
+        let mut tmp = ret.clone();
+        ret = vec![];
+        while let Some(i) = tmp.pop() {
+            let mut split = false;
+            for rule in block {
+                let (center, splits) = split_range(i, rule);
+                if let Some(intersect) = center {
+                    ret.push((intersect.0 - rule.1 + rule.0, intersect.1 - rule.1 + rule.0));
+                    tmp.extend(splits);
+                    split = true;
+                    break;
+                }
             }
-        }
-        if !split {
-            ret.push(i);
+            if !split {
+                ret.push(i);
+            }
         }
     }
     ret
@@ -136,16 +143,13 @@ fn convert_seed_range(seed_range: Vec<SeedRange>, table: &Vec<TableItem>) -> Vec
 fn proc_2(data: &str) -> u32 {
     let (_, (seeds, blocks)) = map_parser(data).unwrap();
 
-    let mut seed_ranges = seeds
+    seeds
         .chunks(2)
         .map(|c| (c[0], c[0] + c[1] - 1))
-        .collect::<Vec<SeedRange>>();
-
-    for table in &blocks {
-        seed_ranges = convert_seed_range(seed_ranges, table);
-    }
-
-    seed_ranges.iter().map(|r| r.0).min().unwrap()
+        .flat_map(|s| convert_seed_range(s, &blocks))
+        .map(|r| r.0)
+        .min()
+        .unwrap()
 }
 
 #[cfg(test)]
@@ -180,7 +184,7 @@ mod tests {
     #[test]
     fn test_map_parser() {
         let data = fs::read_to_string("data/test.txt").unwrap();
-        let (intput,_) = map_parser(&data).unwrap();
+        let (intput, _) = map_parser(&data).unwrap();
         assert!(intput.is_empty());
     }
 
@@ -296,19 +300,25 @@ mod tests {
     #[test]
     fn test_sample() {
         let r = (82, 82);
-        let res = convert_seed_range(vec![r], &vec![(50, 98, 2), (52, 50, 48)]);
+        let res = convert_seed_range(r, &vec![vec![(50, 98, 2), (52, 50, 48)]]);
         assert_eq!(res, vec![(84, 84)]);
-        let res = convert_seed_range(res, &vec![(0, 15, 37), (37, 52, 2), (39, 0, 15)]);
+        let res = convert_seed_range(res[0], &vec![vec![(0, 15, 37), (37, 52, 2), (39, 0, 15)]]);
         assert_eq!(res, vec![(84, 84)]);
-        let res = convert_seed_range(res, &vec![(49, 53, 8), (0, 11, 42), (42, 0, 7), (57, 7, 4)]);
+        let res = convert_seed_range(
+            res[0],
+            &vec![vec![(49, 53, 8), (0, 11, 42), (42, 0, 7), (57, 7, 4)]],
+        );
         assert_eq!(res, vec![(84, 84)]);
-        let res = convert_seed_range(res, &vec![(88, 18, 7), (18, 25, 70)]);
+        let res = convert_seed_range(res[0], &vec![vec![(88, 18, 7), (18, 25, 70)]]);
         assert_eq!(res, vec![(77, 77)]);
-        let res = convert_seed_range(res, &vec![(45, 77, 23), (81, 45, 19), (68, 64, 13)]);
+        let res = convert_seed_range(
+            res[0],
+            &vec![vec![(45, 77, 23), (81, 45, 19), (68, 64, 13)]],
+        );
         assert_eq!(res, vec![(45, 45)]);
-        let res = convert_seed_range(res, &vec![(0, 69, 1), (1, 0, 69)]);
+        let res = convert_seed_range(res[0], &vec![vec![(0, 69, 1), (1, 0, 69)]]);
         assert_eq!(res, vec![(46, 46)]);
-        let res = convert_seed_range(vec![(0, 9)], &vec![(20, 0, 5), (30, 5, 5)]);
+        let res = convert_seed_range((0, 9), &vec![vec![(20, 0, 5), (30, 5, 5)]]);
         assert_eq!(res, vec![(20, 24), (30, 34)]);
     }
 }
