@@ -58,8 +58,8 @@ fn map_parser(input: &str) -> IResult<&str, (Vec<u32>, Vec<MapBlock>)> {
 
 // part one
 
-fn convert_item(item: u32, table: TableItem) -> Option<u32> {
-    let (dst_start, src_start, len) = table;
+fn convert_item(item: u32, rule: TableItem) -> Option<u32> {
+    let (dst_start, src_start, len) = rule;
 
     // Trick to get around integer overflow
     if item >= src_start && item - src_start < len {
@@ -69,23 +69,23 @@ fn convert_item(item: u32, table: TableItem) -> Option<u32> {
     }
 }
 
-fn match_items(seeds: &mut Vec<u32>, table: Vec<TableItem>) {
-    for i in seeds {
-        for t in &table {
-            if let Some(res) = convert_item(*i, *t) {
-                *i = res;
+fn apply_transform(seed: u32, blocks: &Vec<Vec<TableItem>>) -> u32 {
+    let mut value = seed;
+    for block in blocks {
+        for rule in block {
+            if let Some(res) = convert_item(value, *rule) {
+                value = res;
                 break;
             }
         }
     }
+    value
 }
 
 fn proc_1(data: &str) -> u32 {
-    let (_, (mut seeds, blocks)) = map_parser(data).unwrap();
-    for block in blocks {
-        match_items(&mut seeds, block);
-    }
-    *seeds.iter().min().unwrap()
+    let (_, (seeds, blocks)) = map_parser(data).unwrap();
+
+    seeds.into_iter().map(|s| apply_transform(s, &blocks)).min().unwrap()
 }
 
 // part two
