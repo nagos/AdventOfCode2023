@@ -13,11 +13,11 @@ fn main() {
     println!("Day 6 part one: {part_one}");
 
     let part_two = proc_2(&data);
-    println!("Day 6 part one: {part_two}");
+    println!("Day 6 part two: {part_two}");
 
     let now = Instant::now();
     let part_two_brute_force = proc_2_brute_force(&data);
-    println!("Day 6 part one: {part_two_brute_force}");
+    println!("Day 6 part two (brute force): {part_two_brute_force}");
     println!("Elapsed: {:.2?}", now.elapsed());
 }
 
