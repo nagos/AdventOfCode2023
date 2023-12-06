@@ -4,7 +4,7 @@ use nom::{
     multi::{many0, many1},
     IResult,
 };
-use std::fs;
+use std::{fs, time::Instant};
 
 fn main() {
     let data = fs::read_to_string("data/input.txt").unwrap();
@@ -14,6 +14,11 @@ fn main() {
 
     let part_two = proc_2(&data);
     println!("Day 6 part one: {part_two}");
+
+    let now = Instant::now();
+    let part_two_brute_force = proc_2_brute_force(&data);
+    println!("Day 6 part one: {part_two_brute_force}");
+    println!("Elapsed: {:.2?}", now.elapsed());
 }
 
 fn line_parser(input: &str) -> IResult<&str, Vec<&str>> {
@@ -69,6 +74,17 @@ fn proc_2(data: &str) -> u32 {
     calc(d1, d2)
 }
 
+fn proc_2_brute_force(data: &str) -> u32 {
+    let (_, (d1, d2)) = parse(data).unwrap();
+    let d1 = process_input_part_two(d1);
+    let d2 = process_input_part_two(d2);
+    calc_brute_force(d1, d2)
+}
+
+fn calc_brute_force(t: u64, d: u64) -> u32 {
+    (0..t).map(|x| t * x - x.pow(2)).filter(|x| x > &d).count() as u32
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -103,6 +119,16 @@ mod tests {
         let res = calc(15, 40);
         assert_eq!(res, 8);
         let res = calc(30, 200);
+        assert_eq!(res, 9);
+    }
+
+    #[test]
+    fn test_calc_brute_force() {
+        let res = calc_brute_force(7, 9);
+        assert_eq!(res, 4);
+        let res = calc_brute_force(15, 40);
+        assert_eq!(res, 8);
+        let res = calc_brute_force(30, 200);
         assert_eq!(res, 9);
     }
 }
