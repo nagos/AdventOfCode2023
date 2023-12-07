@@ -124,8 +124,7 @@ fn convert_seed_range(seed_range: SeedRange, blocks: &Vec<Vec<TableItem>>) -> Ve
         while let Some(i) = tmp.pop() {
             let mut split = false;
             for rule in block {
-                let (center, splits) = split_range(i, rule);
-                if let Some(intersect) = center {
+                if let (Some(intersect), splits) = split_range(i, rule) {
                     ret.push((intersect.0 - rule.1 + rule.0, intersect.1 - rule.1 + rule.0));
                     tmp.extend(splits);
                     split = true;
