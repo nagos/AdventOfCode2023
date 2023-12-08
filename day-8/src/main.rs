@@ -5,6 +5,7 @@ use nom::{
     sequence::terminated,
     IResult,
 };
+use num::integer::lcm;
 use std::{collections::HashMap, fs};
 
 fn main() {
@@ -53,16 +54,21 @@ fn build_map(map_data: Vec<MapNode>) -> HashMap<&str, (&str, &str)> {
     map
 }
 
-fn calc_1(directions: Vec<char>, map: HashMap<&str, (&str, &str)>) -> u32 {
-    let mut curren_key = "AAA";
+fn calc_1(
+    start_key: &str,
+    directions: &Vec<char>,
+    map: &HashMap<&str, (&str, &str)>,
+    part_one: bool,
+) -> u32 {
+    let mut curren_key = start_key;
 
     for i in 0.. {
         let idx = i % directions.len();
         let lr = directions[idx];
 
-        curren_key = node_traverse(lr, curren_key, &map);
+        curren_key = node_traverse(lr, curren_key, map);
 
-        if curren_key == "ZZZ" {
+        if (part_one && curren_key == "ZZZ") || (!part_one && curren_key.ends_with('Z')) {
             return i as u32 + 1;
         }
     }
@@ -72,7 +78,7 @@ fn calc_1(directions: Vec<char>, map: HashMap<&str, (&str, &str)>) -> u32 {
 fn proc_1(data: &str) -> u32 {
     let (_, (directions, nodes)) = parse(data).unwrap();
     let map = build_map(nodes);
-    calc_1(directions, map)
+    calc_1("AAA", &directions, &map, true)
 }
 
 fn find_starting_nodes<'a>(map: &HashMap<&'a str, (&'a str, &'a str)>) -> Vec<&'a str> {
@@ -100,27 +106,15 @@ fn node_traverse<'a>(
     }
 }
 
-fn calc_2(directions: Vec<char>, map: HashMap<&str, (&str, &str)>) -> u32 {
-    let mut path_nodes = find_starting_nodes(&map);
-
-    for i in 0.. {
-        let idx = i % directions.len();
-        let lr = directions[idx];
-
-        path_nodes = path_nodes
-            .iter()
-            .map(|node| node_traverse(lr, node, &map))
-            .collect();
-
-        let end = path_nodes.iter().map(|n| n.ends_with('Z')).all(|end| end);
-        if end {
-            return i as u32 + 1;
-        }
-    }
-    unreachable!()
+fn calc_2(directions: Vec<char>, map: HashMap<&str, (&str, &str)>) -> u64 {
+    find_starting_nodes(&map)
+        .iter()
+        .map(|&n| calc_1(n, &directions, &map, false) as u64)
+        .reduce(lcm)
+        .unwrap()
 }
 
-fn proc_2(data: &str) -> u32 {
+fn proc_2(data: &str) -> u64 {
     let (_, (directions, nodes)) = parse(data).unwrap();
     let map = build_map(nodes);
     calc_2(directions, map)
@@ -137,7 +131,7 @@ mod test {
         assert!(input.is_empty());
 
         let map = build_map(nodes);
-        let res = calc_1(directions, map);
+        let res = calc_1("AAA", &directions, &map, true);
         dbg!(res);
     }
 
