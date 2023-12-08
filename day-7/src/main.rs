@@ -62,12 +62,22 @@ fn get_hand_score(hand: Vec<u32>, use_jockers: bool) -> Vec<u32> {
     let mut ret = hand.clone();
 
     let mut jokers = 0;
+    let mut max_index = 0;
+
     for c in hand {
         if use_jockers && is_jocker(c) {
             jokers += 1;
         } else {
             card_types[c as usize] += 1;
         }
+
+        if card_types[c as usize] > card_types[max_index] {
+            max_index = c as usize;
+        }
+    }
+
+    if use_jockers {
+        card_types[max_index] += jokers;
     }
 
     // 5 4 3 2
@@ -85,7 +95,7 @@ fn get_hand_score(hand: Vec<u32>, use_jockers: bool) -> Vec<u32> {
         }
     }
 
-    let mut score = match doubles {
+    let score = match doubles {
         (1, _, _, _) => 0, // Five of a kind
         (_, 1, _, _) => 1, // Four of a kind
         (_, _, 1, 1) => 2, // Full house
@@ -93,23 +103,6 @@ fn get_hand_score(hand: Vec<u32>, use_jockers: bool) -> Vec<u32> {
         (_, _, _, 2) => 4, // Two pair
         (_, _, _, 1) => 5, // One pair
         _ => 6,            // High card
-    };
-
-    score = match (jokers, score) {
-        (0, _) => score,
-        (1, 6) => 5,
-        (1, 5) => 3,
-        (1, 4) => 2,
-        (1, 3) => 1,
-        (1, 1) => 0,
-        (2, 6) => 3,
-        (2, 5) => 1,
-        (2, 3) => 0,
-        (3, 6) => 1,
-        (3, 5) => 0,
-        (4, 6) => 0,
-        (5, _) => 0,
-        _ => unreachable!(),
     };
 
     ret.insert(0, score);
