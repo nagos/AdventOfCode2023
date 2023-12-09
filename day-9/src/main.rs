@@ -60,16 +60,11 @@ fn calc_line(data: Vec<i32>) -> (i32, i32) {
 
     let last = res_last.iter().sum();
 
-    let mut first = 0;
-    let mut sign = true;
-    for x in res_first {
-        if sign {
-            first += x;
-        } else {
-            first -= x;
-        }
-        sign = !sign;
-    }
+    let first: i32 = res_first
+        .iter()
+        .zip(vec![1, -1].iter().cycle())
+        .map(|(a, b)| a * b)
+        .sum();
 
     (first, last)
 }
