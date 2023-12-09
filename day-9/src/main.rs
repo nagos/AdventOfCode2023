@@ -6,12 +6,15 @@ use nom::{
     IResult,
 };
 
-use std::fs;
+use std::{fs, vec};
 
 fn main() {
     let data = fs::read_to_string("data/input.txt").unwrap();
     let part_one = proc_1(&data);
     println!("Day 9 part one: {part_one}");
+
+    let part_two = proc_2(&data);
+    println!("Day 9 part two: {part_two}");
 }
 
 fn digit1_i32(input: &str) -> IResult<&str, i32> {
@@ -29,11 +32,14 @@ fn parse(input: &str) -> IResult<&str, Vec<Vec<i32>>> {
     many1(pare_line)(input)
 }
 
-fn calc_line(data: Vec<i32>) -> i32 {
+fn proc_line(data: Vec<i32>) -> (Vec<i32>, Vec<i32>) {
     let mut data = data;
-    let mut res = 0;
+    let mut res_first = vec![];
+    let mut res_last = vec![];
+
     loop {
-        res += *data.last().unwrap();
+        res_first.push(*data.first().unwrap());
+        res_last.push(*data.last().unwrap());
 
         if data.is_empty() || data.iter().all(|&x| x == 0) {
             break;
@@ -46,16 +52,36 @@ fn calc_line(data: Vec<i32>) -> i32 {
             .collect::<Vec<i32>>();
     }
 
-    res
+    (res_first, res_last)
 }
 
-fn calc_1(data: Vec<Vec<i32>>) -> i32 {
-    data.into_iter().map(calc_line).sum()
+fn calc_line(data: Vec<i32>) -> (i32, i32) {
+    let (res_first, res_last) = proc_line(data);
+
+    let last = res_last.iter().sum();
+
+    let mut first = 0;
+    let mut sign = true;
+    for x in res_first {
+        if sign {
+            first += x;
+        } else {
+            first -= x;
+        }
+        sign = !sign;
+    }
+
+    (first, last)
 }
 
 fn proc_1(data: &str) -> i32 {
     let (_, data) = parse(data).unwrap();
-    calc_1(data)
+    data.into_iter().map(calc_line).map(|x| x.1).sum()
+}
+
+fn proc_2(data: &str) -> i32 {
+    let (_, data) = parse(data).unwrap();
+    data.into_iter().map(calc_line).map(|x| x.0).sum()
 }
 
 #[cfg(test)]
@@ -80,16 +106,31 @@ mod test {
     #[test]
     fn test_calc_line() {
         let data = vec![0, 3, 6, 9, 12, 15];
-        let res = calc_line(data);
+        let (_, res) = calc_line(data);
         assert_eq!(res, 18);
 
         let data = vec![1, 3, 6, 10, 15, 21];
-        let res = calc_line(data);
+        let (_, res) = calc_line(data);
         assert_eq!(res, 28);
 
         let data = vec![10, 13, 16, 21, 30, 45];
-        let res = calc_line(data);
+        let (_, res) = calc_line(data);
         assert_eq!(res, 68);
+    }
+
+    #[test]
+    fn test_calc_line_2() {
+        let data = vec![0, 3, 6, 9, 12, 15];
+        let (res, _) = calc_line(data);
+        assert_eq!(res, -3);
+
+        let data = vec![1, 3, 6, 10, 15, 21];
+        let (res, _) = calc_line(data);
+        assert_eq!(res, 0);
+
+        let data = vec![10, 13, 16, 21, 30, 45];
+        let (res, _) = calc_line(data);
+        assert_eq!(res, 5);
     }
 
     #[test]
@@ -97,5 +138,12 @@ mod test {
         let data = fs::read_to_string("data/test.txt").unwrap();
         let res = proc_1(&data);
         assert_eq!(res, 114);
+    }
+
+    #[test]
+    fn test_proc_2() {
+        let data = fs::read_to_string("data/test.txt").unwrap();
+        let res = proc_2(&data);
+        assert_eq!(res, 2);
     }
 }
