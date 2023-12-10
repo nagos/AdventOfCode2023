@@ -7,7 +7,7 @@ use nom::{
 
 use std::{fs, vec};
 
-type NodePos = (u32, u32);
+type NodePos = (usize, usize);
 
 #[derive(Debug)]
 struct Node {
@@ -52,7 +52,7 @@ fn analyze(data: Vec<Vec<char>>) -> (NodePos, Vec<Vec<Node>>) {
     for (y, line) in data.iter().enumerate() {
         let mut tmp = vec![];
         for (x, c) in line.iter().enumerate() {
-            let pos = (x as u32, y as u32);
+            let pos = (x, y);
             tmp.push(Node::build(*c));
             if *c == 'S' {
                 start_pos = pos;
@@ -72,7 +72,7 @@ fn adjacent_push(nodes: &mut Vec<Vec<Node>>, pos: NodePos, dir: u32) {
 
     let width = nodes[0].len();
     let height = nodes.len();
-    let (x, y) = (pos.0 as usize, pos.1 as usize);
+    let (x, y) = (pos.0, pos.1);
     match dir {
         0 if y > 0 => nodes[y - 1][x].adjacent.push(pos),
         1 if x < width - 1 => nodes[y][x + 1].adjacent.push(pos),
@@ -88,7 +88,7 @@ fn build_adjacency_list(nodes: &mut Vec<Vec<Node>>) {
 
     for y in 0..height {
         for x in 0..width {
-            let pos = (x as u32, y as u32);
+            let pos = (x, y);
             let node = &nodes[y][x];
             match node.value {
                 '.' => {}
@@ -124,27 +124,22 @@ fn build_adjacency_list(nodes: &mut Vec<Vec<Node>>) {
 }
 
 fn travel_map(nodes: &mut [Vec<Node>], start: NodePos) -> u32 {
-    let mut prev_pos = start;
-
     let mut pos = start;
 
     let mut len = 0;
-    loop {
-        let n = &mut nodes[pos.1 as usize][pos.0 as usize];
+    let mut found = true;
+    while found {
+        let n = &mut nodes[pos.1][pos.0];
+        found = false;
         n.part_of_loop = true;
         n.step = len;
-        let mut found = false;
         for p in n.adjacent.clone() {
-            let adjacent_node = &mut nodes[p.1 as usize][p.0 as usize];
-            if p != prev_pos && (pos == start || adjacent_node.adjacent.contains(&pos)) {
-                prev_pos = pos;
+            let adjacent_node = &nodes[p.1][p.0];
+            if !adjacent_node.part_of_loop && (pos == start || adjacent_node.adjacent.contains(&pos)) {
                 pos = p;
                 found = true;
                 break;
             }
-        }
-        if !found {
-            break;
         }
         len += 1;
     }
@@ -156,21 +151,22 @@ fn find_inside(nodes: &mut Vec<Vec<Node>>, loop_size: u32) -> u32 {
     let height = nodes.len();
     for (y, line) in nodes.iter().enumerate() {
         let mut cnt = 0;
-        for (x, c) in line.iter().enumerate() {
-            if c.part_of_loop && y < height - 1 && nodes[y + 1][x].part_of_loop {
-                let s1 = c.step;
-                let s2 = nodes[y + 1][x].step;
-                if (s1 + loop_size + 1 - s2) % (loop_size + 1) == 1 {
-                    cnt += 1;
-                } else if (s1 + loop_size + 1 - s2) % (loop_size + 1) == loop_size {
-                    cnt -= 1
-                };
-            }
-
-            let inside = cnt != 0;
-
-            if inside && !c.part_of_loop {
-                ret += 1;
+        if y == height - 1 {
+            continue;
+        }
+        for (x, node) in line.iter().enumerate() {
+            let down_node = &nodes[y + 1][x];
+            if node.part_of_loop {
+                if down_node.part_of_loop {
+                    let diff = (node.step + loop_size - down_node.step) % (loop_size);
+                    if diff == 1 {
+                        cnt += 1;
+                    } else if diff == loop_size-1 {
+                        cnt -= 1;
+                    };
+                }
+            } else  if cnt != 0 {
+                    ret += 1;
             }
         }
     }
@@ -182,7 +178,7 @@ fn proc_1(data: &str) -> u32 {
     let (start, mut nodes) = analyze(data);
     build_adjacency_list(&mut nodes);
 
-    (travel_map(&mut nodes, start) + 1) / 2
+    travel_map(&mut nodes, start) / 2
 }
 
 fn proc_2(data: &str) -> u32 {
@@ -190,7 +186,7 @@ fn proc_2(data: &str) -> u32 {
     let (start, mut nodes) = analyze(data);
     build_adjacency_list(&mut nodes);
 
-    let len = travel_map(&mut nodes, start) + 1;
+    let len = travel_map(&mut nodes, start);
 
     find_inside(&mut nodes, len)
 }
@@ -220,7 +216,7 @@ mod test {
         let (_, data) = parse(&data).unwrap();
         let (start, mut nodes) = analyze(data);
         build_adjacency_list(&mut nodes);
-        let len = (travel_map(&mut nodes, start) + 1) / 2;
+        let len = (travel_map(&mut nodes, start)) / 2;
         assert_eq!(len, 4);
     }
 
