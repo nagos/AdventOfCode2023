@@ -160,9 +160,9 @@ fn find_inside(nodes: &mut Vec<Vec<Node>>, loop_size: u32) -> u32 {
             if c.part_of_loop && y < height - 1 && nodes[y + 1][x].part_of_loop {
                 let s1 = c.step;
                 let s2 = nodes[y + 1][x].step;
-                if (s1 + 1) % (loop_size + 1) == s2 {
+                if (s1 + loop_size + 1 - s2) % (loop_size + 1) == 1 {
                     cnt += 1;
-                } else if (s2 + 1) % (loop_size + 1) == s1 {
+                } else if (s1 + loop_size + 1 - s2) % (loop_size + 1) == loop_size {
                     cnt -= 1
                 };
             }
