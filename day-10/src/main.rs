@@ -5,23 +5,25 @@ use nom::{
     IResult,
 };
 
-use std::fs;
+use std::{fs, vec};
 
 type NodePos = (u32, u32);
 
 #[derive(Debug)]
 struct Node {
     adjacent: Vec<NodePos>,
-    pos: NodePos,
     value: char,
+    part_of_loop: bool,
+    step: u32,
 }
 
 impl Node {
-    fn build(pos: NodePos, value: char) -> Self {
+    fn build(value: char) -> Self {
         Node {
             adjacent: vec![],
-            pos,
             value,
+            part_of_loop: false,
+            step: 0,
         }
     }
 }
@@ -30,6 +32,9 @@ fn main() {
     let data = fs::read_to_string("data/input.txt").unwrap();
     let part_one = proc_1(&data);
     println!("Day 10 part one: {part_one}");
+
+    let part_two = proc_2(&data);
+    println!("Day 10 part two: {part_two}");
 }
 
 fn parse_line(input: &str) -> IResult<&str, Vec<char>> {
@@ -48,7 +53,7 @@ fn analyze(data: Vec<Vec<char>>) -> (NodePos, Vec<Vec<Node>>) {
         let mut tmp = vec![];
         for (x, c) in line.iter().enumerate() {
             let pos = (x as u32, y as u32);
-            tmp.push(Node::build(pos, *c));
+            tmp.push(Node::build(*c));
             if *c == 'S' {
                 start_pos = pos;
             }
@@ -65,32 +70,16 @@ fn adjacent_push(nodes: &mut Vec<Vec<Node>>, pos: NodePos, dir: u32) {
     // 2 - down
     // 3 - left
 
-    let width = nodes[0].len() as u32;
-    let height = nodes.len() as u32;
-    let (x, y) = pos;
+    let width = nodes[0].len();
+    let height = nodes.len();
+    let (x, y) = (pos.0 as usize, pos.1 as usize);
     match dir {
-        0 => {
-            if y > 0 {
-                nodes[y as usize - 1][x as usize].adjacent.push(pos);
-            }
-        }
-        1 => {
-            if x < width - 1 {
-                nodes[y as usize][x as usize + 1].adjacent.push(pos);
-            }
-        }
-        2 => {
-            if y < height - 1 {
-                nodes[y as usize + 1][x as usize].adjacent.push(pos);
-            }
-        }
-        3 => {
-            if x > 0 {
-                nodes[y as usize][x as usize - 1].adjacent.push(pos);
-            }
-        }
-        _ => unreachable!(),
-    }
+        0 if y > 0 => nodes[y - 1][x].adjacent.push(pos),
+        1 if x < width - 1 => nodes[y][x + 1].adjacent.push(pos),
+        2 if y < height - 1 => nodes[y + 1][x].adjacent.push(pos),
+        3 if x > 0 => nodes[y][x - 1].adjacent.push(pos),
+        _ => {}
+    };
 }
 
 fn build_adjacency_list(nodes: &mut Vec<Vec<Node>>) {
@@ -134,20 +123,22 @@ fn build_adjacency_list(nodes: &mut Vec<Vec<Node>>) {
     }
 }
 
-fn travel_map(nodes: &[Vec<Node>], start: NodePos) -> u32 {
+fn travel_map(nodes: &mut [Vec<Node>], start: NodePos) -> u32 {
     let mut prev_pos = start;
 
     let mut pos = start;
 
     let mut len = 0;
     loop {
-        let n = &nodes[pos.1 as usize][pos.0 as usize];
+        let n = &mut nodes[pos.1 as usize][pos.0 as usize];
+        n.part_of_loop = true;
+        n.step = len;
         let mut found = false;
-        for p in &n.adjacent {
-            let adjacent_node = &nodes[p.1 as usize][p.0 as usize];
-            if *p != prev_pos && (pos == start || adjacent_node.adjacent.contains(&pos)) {
+        for p in n.adjacent.clone() {
+            let adjacent_node = &mut nodes[p.1 as usize][p.0 as usize];
+            if p != prev_pos && (pos == start || adjacent_node.adjacent.contains(&pos)) {
                 prev_pos = pos;
-                pos = *p;
+                pos = p;
                 found = true;
                 break;
             }
@@ -157,7 +148,33 @@ fn travel_map(nodes: &[Vec<Node>], start: NodePos) -> u32 {
         }
         len += 1;
     }
-    (len + 1) / 2
+    len
+}
+
+fn find_inside(nodes: &mut Vec<Vec<Node>>, loop_size: u32) -> u32 {
+    let mut ret = 0;
+    let height = nodes.len();
+    for (y, line) in nodes.iter().enumerate() {
+        let mut cnt = 0;
+        for (x, c) in line.iter().enumerate() {
+            if c.part_of_loop && y < height - 1 && nodes[y + 1][x].part_of_loop {
+                let s1 = c.step;
+                let s2 = nodes[y + 1][x].step;
+                if (s1 + 1) % (loop_size + 1) == s2 {
+                    cnt += 1;
+                } else if (s2 + 1) % (loop_size + 1) == s1 {
+                    cnt -= 1
+                };
+            }
+
+            let inside = cnt != 0;
+
+            if inside && !c.part_of_loop {
+                ret += 1;
+            }
+        }
+    }
+    ret
 }
 
 fn proc_1(data: &str) -> u32 {
@@ -165,7 +182,17 @@ fn proc_1(data: &str) -> u32 {
     let (start, mut nodes) = analyze(data);
     build_adjacency_list(&mut nodes);
 
-    travel_map(&nodes, start)
+    (travel_map(&mut nodes, start) + 1) / 2
+}
+
+fn proc_2(data: &str) -> u32 {
+    let (_, data) = parse(data).unwrap();
+    let (start, mut nodes) = analyze(data);
+    build_adjacency_list(&mut nodes);
+
+    let len = travel_map(&mut nodes, start) + 1;
+
+    find_inside(&mut nodes, len)
 }
 
 #[cfg(test)]
@@ -193,7 +220,18 @@ mod test {
         let (_, data) = parse(&data).unwrap();
         let (start, mut nodes) = analyze(data);
         build_adjacency_list(&mut nodes);
-        let len = travel_map(&nodes, start);
+        let len = (travel_map(&mut nodes, start) + 1) / 2;
         assert_eq!(len, 4);
+    }
+
+    #[test]
+    fn test_part_two() {
+        let data = fs::read_to_string("data/test_5.txt").unwrap();
+        let (_, data) = parse(&data).unwrap();
+        let (start, mut nodes) = analyze(data);
+        build_adjacency_list(&mut nodes);
+        let len = travel_map(&mut nodes, start);
+        let res = find_inside(&mut nodes, len);
+        assert_eq!(res, 8);
     }
 }
