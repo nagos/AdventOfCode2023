@@ -5,6 +5,7 @@ use nom::{
     IResult,
 };
 
+use itertools::Itertools;
 use std::{fs, vec};
 
 fn main() {
@@ -46,30 +47,22 @@ fn process_data(data: Vec<Vec<char>>) -> (Vec<u32>, Vec<u32>, Vec<(usize, usize)
     (empty_rows, empty_cols, galaxies)
 }
 
-fn proc_1(data: &str, expand: usize) -> usize {
+fn proc_1(data: &str, expand: u64) -> u64 {
     let (_, data) = parse(data).unwrap();
     let (empty_rows, empty_cols, galaxies) = process_data(data);
 
-    let mut pair_list = vec![];
-
-    for i in 0..galaxies.len() {
-        for q in i + 1..galaxies.len() {
-            pair_list.push((galaxies[i], galaxies[q]));
-        }
-    }
-
     let mut res = 0;
-    for g in pair_list {
-        let (g1, g2) = g;
+    for (g1, g2) in galaxies.iter().tuple_combinations() {
         let (min_x, max_x) = (g1.0.min(g2.0), g1.0.max(g2.0));
         let (min_y, max_y) = (g1.1.min(g2.1), g1.1.max(g2.1));
 
         let inc_x = &empty_cols[min_x..max_x].iter().sum::<u32>();
         let inc_y = &empty_rows[min_y..max_y].iter().sum::<u32>();
 
-        let len = max_x - min_x + max_y - min_y + (*inc_y + *inc_x) as usize * (expand - 1);
+        let len = max_x - min_x + max_y - min_y;
+        let correction = (inc_y + inc_x) as u64 * (expand - 1);
 
-        res += len;
+        res += len as u64 + correction;
     }
 
     res
