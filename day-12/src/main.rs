@@ -6,7 +6,7 @@ use nom::{
 };
 
 use std::time::Instant;
-use std::{fs, vec};
+use std::fs;
 
 type LineData = (Vec<char>, Vec<u32>);
 
@@ -44,93 +44,87 @@ fn parse(input: &str) -> IResult<&str, Vec<LineData>> {
     many1(parse_line)(input)
 }
 
-#[allow(dead_code)]
-fn calc_list(data: &Vec<char>) -> Vec<u32> {
-    let mut tmp = 0;
-    let mut res = vec![];
-    for c in data {
-        if *c == '#' {
-            tmp += 1;
-        } else if tmp != 0 {
-            res.push(tmp);
-            tmp = 0;
+fn read_bang(data: &[char], list: &[u32]) -> u32 {
+    if data.is_empty() {
+        return 0;
+    }
+
+    let group = list[0] as usize;
+
+    let group_data = &data[0..group];
+
+    if !group_data.iter().all(|&c| c == '#' || c == '?') {
+        return 0;
+    }
+
+    if group != data.len() {
+        let next_char = data[group];
+        if next_char == '?' || next_char == '.' {
+            let next_idx = group + 1;
+            let next_data = &data[next_idx..];
+            let next_list = &list[1..];
+            return solve(next_data, next_list);
+        } else {
+            return 0;
         }
     }
 
-    if tmp != 0 {
-        res.push(tmp);
+    if list.len() == 1 {
+        1
+    } else {
+        0
     }
-
-    res
 }
 
-fn verify_list(data: &Vec<char>, list: &Vec<u32>) -> bool {
-    let mut idx = 0;
-    let mut tmp = 0;
-
-    for c in data {
-        if *c == '#' {
-            tmp += 1;
-        } else if tmp != 0 {
-            if idx >= list.len() || tmp != list[idx] {
-                return false;
-            }
-            tmp = 0;
-            idx += 1;
+fn solve(data: &[char], list: &[u32]) -> u32 {
+    if list.is_empty() {
+        if data.iter().all(|&c| c == '.' || c == '?') {
+            return 1;
+        } else {
+            return 0;
         }
     }
 
-    if tmp != 0 {
-        if idx >= list.len() || tmp != list[idx] {
-            return false;
+    if data.is_empty() && !list.is_empty() {
+        return 0;
+    }
+
+    for idx in 0..data.len() {
+        let current_group = list[0] as usize;
+
+        if data.len() - idx < current_group {
+            return 0;
         }
-        idx += 1;
-    }
 
-    if idx != list.len() {
-        return false;
-    }
+        let current_char = data[idx];
+        if current_char == '.' {
+            continue;
+        }
 
-    true
-}
+        if current_char == '#' {
+            let next_data = &data[idx..];
+            return read_bang(next_data, list);
+        }
 
-fn solve(data: &mut Vec<char>, unknown_list: &Vec<usize>, idx: usize, list: &Vec<u32>) -> u32 {
-    let mut ret = 0;
+        if current_char == '?' {
+            let next_data = &data[idx..];
+            let res_bang = read_bang(next_data, list);
+            let next_data = &data[(idx + 1)..];
+            let res_dot = solve(next_data, list);
 
-    if idx < unknown_list.len() {
-        let char_idx = unknown_list[idx];
-        data[char_idx] = '#';
-        ret += solve(data, unknown_list, idx + 1, list);
-        data[char_idx] = '.';
-        ret += solve(data, unknown_list, idx + 1, list);
-        data[char_idx] = '?';
-    } else if verify_list(data, list) {
-        ret = 1;
-    }
-
-    ret
-}
-
-fn find_unknown(data: &[char]) -> Vec<usize> {
-    let mut ret = vec![];
-
-    for (i, c) in data.iter().enumerate() {
-        if *c == '?' {
-            ret.push(i);
+            return res_bang + res_dot;
         }
     }
 
-    ret
+    0
 }
 
 fn proc_1(data: &str) -> u32 {
     let (_, data) = parse(data).unwrap();
     let mut ret = 0;
     for d in data {
-        let (mut data, list) = d;
-        let unknown_list = find_unknown(&data);
-
-        ret += solve(&mut data, &unknown_list, 0, &list);
+        let (data, list) = d;
+        ret += solve(&data, &list);
     }
 
     ret
@@ -142,16 +136,13 @@ fn proc_2(data: &str) -> u32 {
 
     for d in data {
         let (data, list) = d;
-        let (mut new_data, new_list) = part_two_process_data(data, list);
-        let unknown_list = find_unknown(&new_data);
+        let (new_data, new_list) = part_two_process_data(data, list);
 
-        ret += solve(&mut new_data, &unknown_list, 0, &new_list);
-        dbg!(ret);
+        ret += solve(&new_data, &new_list);
     }
 
     ret
 }
-
 
 fn part_two_process_data(data: Vec<char>, list: Vec<u32>) -> (Vec<char>, Vec<u32>) {
     let mut new_data = data.clone();
@@ -178,59 +169,23 @@ mod test {
     }
 
     #[test]
-    fn test_list() {
-        let data = vec!['#', '.', '#', '.', '#', '#', '#'];
-        let list = vec![1, 1, 3];
-
-        let res = calc_list(&data);
-        assert_eq!(res, list);
-    }
-
-    #[test]
-    fn test_find_unknown() {
-        let data = vec!['?', '?', '?', '.', '#', '#', '#'];
-        let res = find_unknown(&data);
-        assert_eq!(res, vec![0, 1, 2]);
-    }
-
-    #[test]
     fn test_solve() {
-        let mut data = vec!['?', '?', '?', '.', '#', '#', '#'];
+        let data = vec!['?', '?', '?', '.', '#', '#', '#'];
         let list = vec![1, 1, 3];
-        let unknown_list = vec![0, 1, 2];
-        let res = solve(&mut data, &unknown_list, 0, &list);
+        let res = solve(&data, &list);
         assert_eq!(res, 1);
 
-        let mut data = vec![
+        let data = vec![
             '.', '?', '?', '.', '.', '?', '?', '.', '.', '.', '?', '#', '#', '.',
         ];
         let list = vec![1, 1, 3];
-        let unknown_list = find_unknown(&data);
-        let res = solve(&mut data, &unknown_list, 0, &list);
+        let res = solve(&data, &list);
         assert_eq!(res, 4);
-    }
 
-    #[test]
-    fn test_verify_list() {
-        assert!(verify_list(
-            &vec!['#', '.', '#', '.', '#', '#', '#'],
-            &vec![1, 1, 3]
-        ));
-        assert!(verify_list(
-            &vec!['.', '#', '#', '#', '.', '#', '#', '.', '#', '.', '.', '.'],
-            &vec![3, 2, 1]
-        ));
-        assert!(verify_list(
-            &vec!['.', '#', '#', '#', '.', '.', '.', '#', '#', '.', '#', '.'],
-            &vec![3, 2, 1]
-        ));
-        assert_eq!(
-            verify_list(
-                &vec!['.', '#', '#', '#', '.', '.', '.', '#', '#', '.', '.', '.'],
-                &vec![3, 2, 1]
-            ),
-            false
-        );
+        let data = vec!['?', '#', '#', '#', '?', '?', '?', '?', '?', '?', '?', '?'];
+        let list = vec![3, 2, 1];
+        let res = solve(&data, &list);
+        assert_eq!(res, 10);
     }
 
     #[test]
