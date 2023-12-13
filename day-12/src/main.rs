@@ -16,6 +16,11 @@ fn main() {
     let part_one = proc_1(&data);
     let part_one_duration = now.elapsed();
     println!("Day 12 part one: {part_one} ({part_one_duration:.2?})");
+
+    let now = Instant::now();
+    let part_two = proc_2(&data);
+    let part_two_duration = now.elapsed();
+    println!("Day 12 part two: {part_two} ({part_two_duration:.2?})");
 }
 
 fn digit1_u32(input: &str) -> IResult<&str, u32> {
@@ -131,6 +136,36 @@ fn proc_1(data: &str) -> u32 {
     ret
 }
 
+fn proc_2(data: &str) -> u32 {
+    let (_, data) = parse(data).unwrap();
+    let mut ret = 0;
+
+    for d in data {
+        let (data, list) = d;
+        let (mut new_data, new_list) = part_two_process_data(data, list);
+        let unknown_list = find_unknown(&new_data);
+
+        ret += solve(&mut new_data, &unknown_list, 0, &new_list);
+        dbg!(ret);
+    }
+
+    ret
+}
+
+
+fn part_two_process_data(data: Vec<char>, list: Vec<u32>) -> (Vec<char>, Vec<u32>) {
+    let mut new_data = data.clone();
+    let mut new_list = list.clone();
+
+    for _ in 1..5 {
+        new_data.push('?');
+        new_data.extend(&data);
+        new_list.extend(&list);
+    }
+
+    (new_data, new_list)
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -203,5 +238,37 @@ mod test {
         let data = fs::read_to_string("data/test.txt").unwrap();
         let res = proc_1(&data);
         assert_eq!(res, 21);
+    }
+
+    #[test]
+    fn test_part_two_expand() {
+        let data = vec![
+            '.', '#', '?', '.', '#', '?', '.', '#', '?', '.', '#', '?', '.', '#',
+        ];
+        let list = vec![1, 1, 1, 1, 1];
+
+        let (new_data, new_list) = part_two_process_data(data, list);
+
+        let res_data = vec![
+            '.', '#', '?', '.', '#', '?', '.', '#', '?', '.', '#', '?', '.', '#', '?', '.', '#',
+            '?', '.', '#', '?', '.', '#', '?', '.', '#', '?', '.', '#', '?', '.', '#', '?', '.',
+            '#', '?', '.', '#', '?', '.', '#', '?', '.', '#', '?', '.', '#', '?', '.', '#', '?',
+            '.', '#', '?', '.', '#', '?', '.', '#', '?', '.', '#', '?', '.', '#', '?', '.', '#',
+            '?', '.', '#', '?', '.', '#',
+        ];
+
+        let res_list = vec![
+            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        ];
+
+        assert_eq!(new_data, res_data);
+        assert_eq!(new_list, res_list);
+    }
+
+    #[test]
+    fn test_proc_2() {
+        let data = fs::read_to_string("data/test.txt").unwrap();
+        let res = proc_2(&data);
+        assert_eq!(res, 525152);
     }
 }
