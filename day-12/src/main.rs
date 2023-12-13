@@ -106,7 +106,8 @@ fn solve<'a>(
         let current_group = list[0] as usize;
 
         if data.len() - idx < current_group {
-            return 0;
+            ret = 0;
+            break;
         }
 
         let current_char = data[idx];
@@ -137,37 +138,29 @@ fn solve<'a>(
 
 fn proc_1(data: &str) -> u64 {
     let (_, data) = parse(data).unwrap();
-    let mut ret = 0;
-    for d in data {
-        let (data, list) = d;
-        ret += solve(&data, &list, &mut HashMap::new());
-    }
 
-    ret
+    data.iter()
+        .map(|(data, list)| solve(&data, &list, &mut HashMap::new()))
+        .sum()
 }
 
 fn proc_2(data: &str) -> u64 {
     let (_, data) = parse(data).unwrap();
-    let mut ret = 0;
 
-    for d in data {
-        let (data, list) = d;
-        let (new_data, new_list) = part_two_process_data(data, list);
-
-        ret += solve(&new_data, &new_list, &mut HashMap::new());
-    }
-
-    ret
+    data.iter()
+        .map(|(data, list)| part_two_process_data(data, list))
+        .map(|(data, list)| solve(&data, &list, &mut HashMap::new()))
+        .sum()
 }
 
-fn part_two_process_data(data: Vec<char>, list: Vec<u32>) -> (Vec<char>, Vec<u32>) {
+fn part_two_process_data(data: &Vec<char>, list: &Vec<u32>) -> (Vec<char>, Vec<u32>) {
     let mut new_data = data.clone();
     let mut new_list = list.clone();
 
     for _ in 1..5 {
         new_data.push('?');
-        new_data.extend(&data);
-        new_list.extend(&list);
+        new_data.extend(data);
+        new_list.extend(list);
     }
 
     (new_data, new_list)
@@ -218,7 +211,7 @@ mod test {
         ];
         let list = vec![1, 1, 1, 1, 1];
 
-        let (new_data, new_list) = part_two_process_data(data, list);
+        let (new_data, new_list) = part_two_process_data(&data, &list);
 
         let res_data = vec![
             '.', '#', '?', '.', '#', '?', '.', '#', '?', '.', '#', '?', '.', '#', '?', '.', '#',
