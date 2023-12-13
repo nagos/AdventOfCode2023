@@ -6,13 +6,16 @@ use nom::{
 };
 
 use std::{fs, vec};
+use std::time::Instant;
 
 type LineData = (Vec<char>, Vec<u32>);
 
 fn main() {
     let data = fs::read_to_string("data/input.txt").unwrap();
+    let now = Instant::now();
     let part_one = proc_1(&data);
-    println!("Day 12 part one: {part_one}");
+    let part_one_duration = now.elapsed();
+    println!("Day 12 part one: {part_one} ({part_one_duration:.2?})");
 }
 
 fn digit1_u32(input: &str) -> IResult<&str, u32> {
