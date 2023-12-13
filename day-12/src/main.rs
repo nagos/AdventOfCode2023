@@ -52,7 +52,6 @@ fn read_bang<'a>(data: &'a [char], list: &'a [u32], cache: &mut Cache) -> u64 {
     }
 
     let group = list[0] as usize;
-
     let group_data = &data[0..group];
 
     if !group_data.iter().all(|&c| c == '#' || c == '?') {
@@ -63,15 +62,11 @@ fn read_bang<'a>(data: &'a [char], list: &'a [u32], cache: &mut Cache) -> u64 {
         let next_char = data[group];
         if next_char == '?' || next_char == '.' {
             let next_idx = group + 1;
-            let next_data = &data[next_idx..];
-            let next_list = &list[1..];
-            return solve(next_data, next_list, cache);
+            solve(&data[next_idx..], &list[1..], cache)
         } else {
-            return 0;
+            0
         }
-    }
-
-    if list.len() == 1 {
+    } else if list.len() == 1 {
         1
     } else {
         0
@@ -94,36 +89,16 @@ fn solve<'a>(data: &'a [char], list: &'a [u32], cache: &mut Cache) -> u64 {
         return 0;
     }
 
-    let mut ret = 0;
-    for idx in 0..data.len() {
-        let current_group = list[0] as usize;
+    let current_group = list[0] as usize;
+    let current_char = data[0];
+    let ret = match current_char {
+        _ if data.len() < current_group => 0,
+        '.' => solve(&data[1..], list, cache),
+        '#' => read_bang(data, list, cache),
+        '?' => read_bang(data, list, cache) + solve(&data[1..], list, cache),
+        _ => unreachable!(),
+    };
 
-        if data.len() - idx < current_group {
-            ret = 0;
-            break;
-        }
-
-        let current_char = data[idx];
-        if current_char == '.' {
-            continue;
-        }
-
-        if current_char == '#' {
-            let next_data = &data[idx..];
-            ret = read_bang(next_data, list, cache);
-            break;
-        }
-
-        if current_char == '?' {
-            let next_data = &data[idx..];
-            let res_bang = read_bang(next_data, list, cache);
-            let next_data = &data[(idx + 1)..];
-            let res_dot = solve(next_data, list, cache);
-
-            ret = res_bang + res_dot;
-            break;
-        }
-    }
     cache.insert((data.len(), list.len()), ret);
 
     ret
@@ -228,4 +203,21 @@ mod test {
         let res = proc_2(&data);
         assert_eq!(res, 525152);
     }
+
+    // #[test]
+    // fn test_map() {
+    //     let data = vec![
+    //         '?','?', '?','.','#','#','#',
+    //     ];
+
+    //     let list = vec![1, 1, 3];
+
+    //     let mut m = HashMap::new();
+    //     let res = solve(&data, &list, &mut m);
+    //     dbg!(res);
+
+    //     dbg!(&m);
+
+    //     dbg!(m.len());
+    // }
 }
