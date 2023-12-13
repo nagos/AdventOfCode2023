@@ -10,6 +10,7 @@ use std::fs;
 use std::time::Instant;
 
 type LineData = (Vec<char>, Vec<u32>);
+type Cache = HashMap<(usize, usize), u64>;
 
 fn main() {
     let data = fs::read_to_string("data/input.txt").unwrap();
@@ -45,11 +46,7 @@ fn parse(input: &str) -> IResult<&str, Vec<LineData>> {
     many1(parse_line)(input)
 }
 
-fn read_bang<'a>(
-    data: &'a [char],
-    list: &'a [u32],
-    cache: &mut HashMap<(&'a [char], &'a [u32]), u64>,
-) -> u64 {
+fn read_bang<'a>(data: &'a [char], list: &'a [u32], cache: &mut Cache) -> u64 {
     if data.is_empty() {
         return 0;
     }
@@ -81,12 +78,8 @@ fn read_bang<'a>(
     }
 }
 
-fn solve<'a>(
-    data: &'a [char],
-    list: &'a [u32],
-    cache: &mut HashMap<(&'a [char], &'a [u32]), u64>,
-) -> u64 {
-    if let Some(v) = cache.get(&(data, list)) {
+fn solve<'a>(data: &'a [char], list: &'a [u32], cache: &mut Cache) -> u64 {
+    if let Some(v) = cache.get(&(data.len(), list.len())) {
         return *v;
     }
     if list.is_empty() {
@@ -131,7 +124,7 @@ fn solve<'a>(
             break;
         }
     }
-    cache.insert((data, list), ret);
+    cache.insert((data.len(), list.len()), ret);
 
     ret
 }
@@ -140,7 +133,7 @@ fn proc_1(data: &str) -> u64 {
     let (_, data) = parse(data).unwrap();
 
     data.iter()
-        .map(|(data, list)| solve(&data, &list, &mut HashMap::new()))
+        .map(|(data, list)| solve(data, list, &mut HashMap::new()))
         .sum()
 }
 
