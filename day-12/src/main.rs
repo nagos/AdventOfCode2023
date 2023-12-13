@@ -5,8 +5,9 @@ use nom::{
     IResult,
 };
 
-use std::time::Instant;
+use std::collections::HashMap;
 use std::fs;
+use std::time::Instant;
 
 type LineData = (Vec<char>, Vec<u32>);
 
@@ -44,7 +45,11 @@ fn parse(input: &str) -> IResult<&str, Vec<LineData>> {
     many1(parse_line)(input)
 }
 
-fn read_bang(data: &[char], list: &[u32]) -> u32 {
+fn read_bang<'a>(
+    data: &'a [char],
+    list: &'a [u32],
+    cache: &mut HashMap<(&'a [char], &'a [u32]), u64>,
+) -> u64 {
     if data.is_empty() {
         return 0;
     }
@@ -63,7 +68,7 @@ fn read_bang(data: &[char], list: &[u32]) -> u32 {
             let next_idx = group + 1;
             let next_data = &data[next_idx..];
             let next_list = &list[1..];
-            return solve(next_data, next_list);
+            return solve(next_data, next_list, cache);
         } else {
             return 0;
         }
@@ -76,7 +81,14 @@ fn read_bang(data: &[char], list: &[u32]) -> u32 {
     }
 }
 
-fn solve(data: &[char], list: &[u32]) -> u32 {
+fn solve<'a>(
+    data: &'a [char],
+    list: &'a [u32],
+    cache: &mut HashMap<(&'a [char], &'a [u32]), u64>,
+) -> u64 {
+    if let Some(v) = cache.get(&(data, list)) {
+        return *v;
+    }
     if list.is_empty() {
         if data.iter().all(|&c| c == '.' || c == '?') {
             return 1;
@@ -89,6 +101,7 @@ fn solve(data: &[char], list: &[u32]) -> u32 {
         return 0;
     }
 
+    let mut ret = 0;
     for idx in 0..data.len() {
         let current_group = list[0] as usize;
 
@@ -103,34 +116,37 @@ fn solve(data: &[char], list: &[u32]) -> u32 {
 
         if current_char == '#' {
             let next_data = &data[idx..];
-            return read_bang(next_data, list);
+            ret = read_bang(next_data, list, cache);
+            break;
         }
 
         if current_char == '?' {
             let next_data = &data[idx..];
-            let res_bang = read_bang(next_data, list);
+            let res_bang = read_bang(next_data, list, cache);
             let next_data = &data[(idx + 1)..];
-            let res_dot = solve(next_data, list);
+            let res_dot = solve(next_data, list, cache);
 
-            return res_bang + res_dot;
+            ret = res_bang + res_dot;
+            break;
         }
     }
+    cache.insert((data, list), ret);
 
-    0
+    ret
 }
 
-fn proc_1(data: &str) -> u32 {
+fn proc_1(data: &str) -> u64 {
     let (_, data) = parse(data).unwrap();
     let mut ret = 0;
     for d in data {
         let (data, list) = d;
-        ret += solve(&data, &list);
+        ret += solve(&data, &list, &mut HashMap::new());
     }
 
     ret
 }
 
-fn proc_2(data: &str) -> u32 {
+fn proc_2(data: &str) -> u64 {
     let (_, data) = parse(data).unwrap();
     let mut ret = 0;
 
@@ -138,7 +154,7 @@ fn proc_2(data: &str) -> u32 {
         let (data, list) = d;
         let (new_data, new_list) = part_two_process_data(data, list);
 
-        ret += solve(&new_data, &new_list);
+        ret += solve(&new_data, &new_list, &mut HashMap::new());
     }
 
     ret
@@ -172,19 +188,19 @@ mod test {
     fn test_solve() {
         let data = vec!['?', '?', '?', '.', '#', '#', '#'];
         let list = vec![1, 1, 3];
-        let res = solve(&data, &list);
+        let res = solve(&data, &list, &mut HashMap::new());
         assert_eq!(res, 1);
 
         let data = vec![
             '.', '?', '?', '.', '.', '?', '?', '.', '.', '.', '?', '#', '#', '.',
         ];
         let list = vec![1, 1, 3];
-        let res = solve(&data, &list);
+        let res = solve(&data, &list, &mut HashMap::new());
         assert_eq!(res, 4);
 
         let data = vec!['?', '#', '#', '#', '?', '?', '?', '?', '?', '?', '?', '?'];
         let list = vec![3, 2, 1];
-        let res = solve(&data, &list);
+        let res = solve(&data, &list, &mut HashMap::new());
         assert_eq!(res, 10);
     }
 
