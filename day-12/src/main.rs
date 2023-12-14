@@ -5,9 +5,9 @@ use nom::{
     IResult,
 };
 
-use std::collections::HashMap;
 use std::fs;
 use std::time::Instant;
+use std::{collections::HashMap, vec};
 
 type LineData = (Vec<char>, Vec<u32>);
 type Cache = HashMap<(usize, usize), u64>;
@@ -17,12 +17,22 @@ fn main() {
     let now = Instant::now();
     let part_one = proc_1(&data);
     let part_one_duration = now.elapsed();
-    println!("Day 12 part one: {part_one} ({part_one_duration:.2?})");
+    println!("Day 12 part one (cache): {part_one} ({part_one_duration:.2?})");
 
     let now = Instant::now();
     let part_two = proc_2(&data);
     let part_two_duration = now.elapsed();
-    println!("Day 12 part two: {part_two} ({part_two_duration:.2?})");
+    println!("Day 12 part two (cache): {part_two} ({part_two_duration:.2?})");
+
+    let now = Instant::now();
+    let part_one = proc_1_tabular(&data);
+    let part_one_duration = now.elapsed();
+    println!("Day 12 part one (tabular): {part_one} ({part_one_duration:.2?})");
+
+    let now = Instant::now();
+    let part_two = proc_2_tabular(&data);
+    let part_two_duration = now.elapsed();
+    println!("Day 12 part two (tabular): {part_two} ({part_two_duration:.2?})");
 }
 
 fn digit1_u32(input: &str) -> IResult<&str, u32> {
@@ -121,6 +131,23 @@ fn proc_2(data: &str) -> u64 {
         .sum()
 }
 
+fn proc_1_tabular(data: &str) -> u64 {
+    let (_, data) = parse(data).unwrap();
+
+    data.iter()
+        .map(|(data, list)| solve_table(data, list))
+        .sum()
+}
+
+fn proc_2_tabular(data: &str) -> u64 {
+    let (_, data) = parse(data).unwrap();
+
+    data.iter()
+        .map(|(data, list)| part_two_process_data(data, list))
+        .map(|(data, list)| solve_table(&data, &list))
+        .sum()
+}
+
 fn part_two_process_data(data: &Vec<char>, list: &Vec<u32>) -> (Vec<char>, Vec<u32>) {
     let mut new_data = data.clone();
     let mut new_list = list.clone();
@@ -132,6 +159,61 @@ fn part_two_process_data(data: &Vec<char>, list: &Vec<u32>) -> (Vec<char>, Vec<u
     }
 
     (new_data, new_list)
+}
+
+fn solve_table(data: &[char], list: &[u32]) -> u64 {
+    let width = data.len();
+    let height = list.len();
+    let mut tab = vec![vec![0; width + 1]; height + 1];
+
+    // x - remaining chars
+    // y - remaining groups
+
+    for y in 0..=height {
+        for x in 0..=width {
+            let chars = &data[(data.len() - x)..];
+            let v = match (x, y) {
+                _ if y == 0 => {
+                    if chars.iter().all(|&c| c == '.' || c == '?') {
+                        1
+                    } else {
+                        0
+                    }
+                }
+                _ if x == 0 => 0,
+                (x, y) => {
+                    let group = list[list.len() - y] as usize;
+
+                    // skip
+                    let skip_value = if chars[0] != '#' { tab[y][x - 1] } else { 0 };
+
+                    // take
+                    let take_value;
+                    if x < group {
+                        take_value = 0;
+                    } else {
+                        let group_chars = &chars[..group];
+
+                        if group_chars.iter().all(|&c| c == '#' || c == '?') {
+                            if x == group {
+                                take_value = tab[y - 1][x - group];
+                            } else if x > group && chars[group] != '#' {
+                                take_value = tab[y - 1][x - group - 1];
+                            } else {
+                                take_value = 0;
+                            };
+                        } else {
+                            take_value = 0;
+                        }
+                    }
+                    take_value + skip_value
+                }
+            };
+
+            tab[y][x] = v;
+        }
+    }
+    tab[height][width]
 }
 
 #[cfg(test)]
@@ -204,20 +286,59 @@ mod test {
         assert_eq!(res, 525152);
     }
 
-    // #[test]
-    // fn test_map() {
-    //     let data = vec![
-    //         '?','?', '?','.','#','#','#',
-    //     ];
+    #[test]
+    fn test_table() {
+        let data = vec!['?', '?', '?', '.', '#', '#', '#'];
+        let list = vec![1, 1, 3];
+        let res = solve_table(&data, &list);
+        assert_eq!(res, 1);
 
-    //     let list = vec![1, 1, 3];
+        let data = vec![
+            '.', '?', '?', '.', '.', '?', '?', '.', '.', '.', '?', '#', '#', '.',
+        ];
+        let list = vec![1, 1, 3];
+        let res = solve_table(&data, &list);
+        assert_eq!(res, 4);
 
-    //     let mut m = HashMap::new();
-    //     let res = solve(&data, &list, &mut m);
-    //     dbg!(res);
+        let data = vec![
+            '?', '#', '?', '#', '?', '#', '?', '#', '?', '#', '?', '#', '?', '#', '?',
+        ];
+        let list = vec![1, 3, 1, 6];
+        let res = solve_table(&data, &list);
+        assert_eq!(res, 1);
 
-    //     dbg!(&m);
+        let data = vec![
+            '?', '?', '?', '?', '.', '#', '.', '.', '.', '#', '.', '.', '.',
+        ];
+        let list = vec![4, 1, 1];
+        let res = solve_table(&data, &list);
+        assert_eq!(res, 1);
 
-    //     dbg!(m.len());
-    // }
+        let data = vec![
+            '?', '?', '?', '?', '.', '#', '#', '#', '#', '#', '#', '.', '.', '#', '#', '#', '#',
+            '#', '.',
+        ];
+        let list = vec![1, 6, 5];
+        let res = solve_table(&data, &list);
+        assert_eq!(res, 4);
+
+        let data = vec!['?', '#', '#', '#', '?', '?', '?', '?', '?', '?', '?', '?'];
+        let list = vec![3, 2, 1];
+        let res = solve_table(&data, &list);
+        assert_eq!(res, 10);
+    }
+
+    #[test]
+    fn test_proc_1_tabular() {
+        let data = fs::read_to_string("data/test.txt").unwrap();
+        let res = proc_1_tabular(&data);
+        assert_eq!(res, 21);
+    }
+
+    #[test]
+    fn test_proc_2_tabular() {
+        let data = fs::read_to_string("data/test.txt").unwrap();
+        let res = proc_2_tabular(&data);
+        assert_eq!(res, 525152);
+    }
 }
