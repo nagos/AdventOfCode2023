@@ -109,26 +109,33 @@ fn beam_move(data: &Vec<Vec<char>>, start_x: usize, start_y: usize, start_dir: D
     let mut queue: Vec<(Dir, usize, usize)> = vec![];
     let width = data[0].len();
     let height = data.len();
-    let mut visit_list: HashSet<(Dir, usize, usize)> = HashSet::new();
+    let mut visit_list: HashSet<(Dir, u8, u8)> = HashSet::new();
 
     queue.push((start_dir, start_x, start_y));
+    visit_list.insert((start_dir, start_x as u8, start_y as u8));
     while let Some((d, x, y)) = queue.pop() {
-        if visit_list.contains(&(d, x, y)) {
-            continue;
-        }
-        visit_list.insert((d, x, y));
-
         let c = data[y][x];
         next_dir(d, c)
             .iter()
             .filter_map(|&dir| get_next_cell(dir, x, y, width, height))
-            .for_each(|(dir, x, y)| queue.push((dir, x, y)));
+            .for_each(|(dir, x, y)| {
+                if !visit_list.contains(&(d, x as u8, y as u8)) {
+                    queue.push((dir, x, y));
+                    visit_list.insert((d, x as u8, y as u8));
+                }
+            });
     }
-    let mut calc_set: HashSet<(usize, usize)> = HashSet::new();
-    for (_, x, y) in visit_list {
-        calc_set.insert((x, y));
-    }
-    calc_set.len() as u32
+
+    visit_list
+        .iter()
+        .fold(
+            HashSet::new(),
+            |mut s: HashSet<(u8, u8)>, (_, x, y): &(Dir, u8, u8)| {
+                s.insert((*x, *y));
+                s
+            },
+        )
+        .len() as u32
 }
 
 fn calc_1(data: &str) -> u32 {
