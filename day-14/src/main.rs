@@ -45,9 +45,9 @@ impl Display for InputData {
 fn main() {
     let data = fs::read_to_string("data/input.txt").unwrap();
     let part_one = proc(&data);
-    println!("Day 43 part one: {part_one}");
+    println!("Day 14 part one: {part_one}");
     let part_two = proc_2(&data);
-    println!("Day 43 part two: {part_two}");
+    println!("Day 14 part two: {part_two}");
 }
 
 fn parse_line(input: &str) -> IResult<&str, Vec<char>> {
