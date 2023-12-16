@@ -5,14 +5,19 @@ use nom::{
 };
 
 use std::fs;
+use std::time::Instant;
 
 fn main() {
     let data = fs::read_to_string("data/input.txt").unwrap();
+    let now = Instant::now();
     let part_one = calc_1(&data);
-    println!("Day 16 part one: {part_one}");
+    let duration = now.elapsed();
+    println!("Day 16 part one: {part_one} ({duration:.2?})");
 
+    let now = Instant::now();
     let part_two = calc_2(&data);
-    println!("Day 16 part two: {part_two}");
+    let duration = now.elapsed();
+    println!("Day 16 part two: {part_two} ({duration:.2?})");
 }
 
 #[derive(Debug)]
