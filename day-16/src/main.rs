@@ -10,6 +10,9 @@ fn main() {
     let data = fs::read_to_string("data/input.txt").unwrap();
     let part_one = calc_1(&data);
     println!("Day 16 part one: {part_one}");
+
+    let part_two = calc_2(&data);
+    println!("Day 16 part two: {part_two}");
 }
 
 #[derive(Debug)]
@@ -33,7 +36,7 @@ fn parse(input: &str) -> IResult<&str, Vec<Vec<char>>> {
     Ok((input, data))
 }
 
-fn beam_move(data: Vec<Vec<char>>) -> u32 {
+fn beam_move(data: &Vec<Vec<char>>, start_x: usize, start_y: usize, start_dir: Dir) -> u32 {
     let mut queue: Vec<(Dir, usize, usize)> = vec![];
     let width = data[0].len();
     let height = data.len();
@@ -62,7 +65,7 @@ fn beam_move(data: Vec<Vec<char>>) -> u32 {
 
     let mut visit_list = vec![vec![(false, false, false, false); width]; height];
 
-    queue.push((Dir::Right, 0, 0));
+    queue.push((start_dir, start_x, start_y));
 
     while let Some((d, x, y)) = queue.pop() {
         let visited = match d {
@@ -162,7 +165,37 @@ fn beam_move(data: Vec<Vec<char>>) -> u32 {
 
 fn calc_1(data: &str) -> u32 {
     let (_, data) = parse(data).unwrap();
-    beam_move(data)
+    beam_move(&data, 0, 0, Dir::Right)
+}
+
+fn calc_2(data: &str) -> u32 {
+    let (_, data) = parse(data).unwrap();
+    let width = data[0].len();
+    let height = data.len();
+
+    let mut max_value = 0;
+
+    // right
+    for y in 0..height {
+        max_value = max_value.max(beam_move(&data, 0, y, Dir::Right));
+    }
+
+    // left
+    for y in 0..height {
+        max_value = max_value.max(beam_move(&data, width - 1, y, Dir::Left));
+    }
+
+    // down
+    for x in 0..width {
+        max_value = max_value.max(beam_move(&data, x, 0, Dir::Down));
+    }
+
+    // up
+    for x in 0..width {
+        max_value = max_value.max(beam_move(&data, x, height - 1, Dir::Up));
+    }
+
+    max_value
 }
 
 #[cfg(test)]
@@ -181,5 +214,12 @@ mod test {
         let data = fs::read_to_string("data/test.txt").unwrap();
         let res = calc_1(&data);
         assert_eq!(res, 46);
+    }
+
+    #[test]
+    fn test_calc2() {
+        let data = fs::read_to_string("data/test.txt").unwrap();
+        let res = calc_2(&data);
+        assert_eq!(res, 51);
     }
 }
