@@ -4,8 +4,9 @@ use nom::{
     IResult,
 };
 
-use std::fs;
+use std::collections::HashSet;
 use std::time::Instant;
+use std::{fs, vec};
 
 fn main() {
     let data = fs::read_to_string("data/input.txt").unwrap();
@@ -20,13 +21,14 @@ fn main() {
     println!("Day 16 part two: {part_two} ({duration:.2?})");
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 enum Dir {
     Up,
     Down,
     Left,
     Right,
 }
+
 fn parse_line(input: &str) -> IResult<&str, Vec<char>> {
     let (input, data) = many1(one_of("./\\-|"))(input)?;
     let (input, _) = newline(input)?;
@@ -41,131 +43,92 @@ fn parse(input: &str) -> IResult<&str, Vec<Vec<char>>> {
     Ok((input, data))
 }
 
+fn next_dir(incoming: Dir, c: char) -> Vec<Dir> {
+    match (incoming, c) {
+        (_, '.') => vec![incoming],
+        (Dir::Right, '|') => vec![Dir::Up, Dir::Down],
+        (Dir::Right, '-') => vec![Dir::Right],
+        (Dir::Right, '\\') => vec![Dir::Down],
+        (Dir::Right, '/') => vec![Dir::Up],
+        (Dir::Down, '|') => vec![Dir::Down],
+        (Dir::Down, '\\') => vec![Dir::Right],
+        (Dir::Down, '/') => vec![Dir::Left],
+        (Dir::Down, '-') => vec![Dir::Left, Dir::Right],
+        (Dir::Up, '|') => vec![Dir::Up],
+        (Dir::Up, '\\') => vec![Dir::Left],
+        (Dir::Up, '/') => vec![Dir::Right],
+        (Dir::Up, '-') => vec![Dir::Left, Dir::Right],
+        (Dir::Left, '|') => vec![Dir::Up, Dir::Down],
+        (Dir::Left, '\\') => vec![Dir::Up],
+        (Dir::Left, '/') => vec![Dir::Down],
+        (Dir::Left, '-') => vec![Dir::Left],
+        _ => unreachable!(),
+    }
+}
+
+fn get_next_cell(
+    dir: Dir,
+    x: usize,
+    y: usize,
+    width: usize,
+    height: usize,
+) -> Option<(Dir, usize, usize)> {
+    match dir {
+        Dir::Left => {
+            if x != 0 {
+                Some((dir, x - 1, y))
+            } else {
+                None
+            }
+        }
+        Dir::Up => {
+            if y != 0 {
+                Some((dir, x, y - 1))
+            } else {
+                None
+            }
+        }
+        Dir::Down => {
+            if y != height - 1 {
+                Some((dir, x, y + 1))
+            } else {
+                None
+            }
+        }
+        Dir::Right => {
+            if x != width - 1 {
+                Some((dir, x + 1, y))
+            } else {
+                None
+            }
+        }
+    }
+}
+
 fn beam_move(data: &Vec<Vec<char>>, start_x: usize, start_y: usize, start_dir: Dir) -> u32 {
     let mut queue: Vec<(Dir, usize, usize)> = vec![];
     let width = data[0].len();
     let height = data.len();
-
-    fn add_left(x: usize, y: usize, queue: &mut Vec<(Dir, usize, usize)>) {
-        if x != 0 {
-            queue.push((Dir::Left, x - 1, y));
-        }
-    }
-
-    fn add_up(x: usize, y: usize, queue: &mut Vec<(Dir, usize, usize)>) {
-        if y != 0 {
-            queue.push((Dir::Up, x, y - 1));
-        }
-    }
-    fn add_down(x: usize, y: usize, queue: &mut Vec<(Dir, usize, usize)>, height: usize) {
-        if y != height - 1 {
-            queue.push((Dir::Down, x, y + 1));
-        }
-    }
-    fn add_right(x: usize, y: usize, queue: &mut Vec<(Dir, usize, usize)>, width: usize) {
-        if x != width - 1 {
-            queue.push((Dir::Right, x + 1, y));
-        }
-    }
-
-    let mut visit_list = vec![vec![(false, false, false, false); width]; height];
+    let mut visit_list: HashSet<(Dir, usize, usize)> = HashSet::new();
 
     queue.push((start_dir, start_x, start_y));
-
     while let Some((d, x, y)) = queue.pop() {
-        let visited = match d {
-            Dir::Up => visit_list[y][x].0,
-            Dir::Down => visit_list[y][x].1,
-            Dir::Left => visit_list[y][x].2,
-            Dir::Right => visit_list[y][x].3,
-        };
-        if visited {
+        if visit_list.contains(&(d, x, y)) {
             continue;
         }
-        match d {
-            Dir::Up => visit_list[y][x].0 = true,
-            Dir::Down => visit_list[y][x].1 = true,
-            Dir::Left => visit_list[y][x].2 = true,
-            Dir::Right => visit_list[y][x].3 = true,
-        };
+        visit_list.insert((d, x, y));
+
         let c = data[y][x];
-        match (d, c) {
-            (Dir::Right, '.') => add_right(x, y, &mut queue, width),
-            (Dir::Right, '|') => {
-                add_up(x, y, &mut queue);
-                add_down(x, y, &mut queue, height);
-            }
-            (Dir::Right, '-') => add_right(x, y, &mut queue, width),
-            (Dir::Right, '\\') => {
-                add_down(x, y, &mut queue, height);
-            }
-            (Dir::Right, '/') => {
-                add_up(x, y, &mut queue);
-            }
-            (Dir::Down, '.') => {
-                add_down(x, y, &mut queue, height);
-            }
-            (Dir::Down, '|') => {
-                add_down(x, y, &mut queue, height);
-            }
-            (Dir::Down, '\\') => {
-                add_right(x, y, &mut queue, width);
-            }
-            (Dir::Down, '/') => {
-                add_left(x, y, &mut queue);
-            }
-            (Dir::Down, '-') => {
-                add_left(x, y, &mut queue);
-                add_right(x, y, &mut queue, width);
-            }
-            (Dir::Up, '/') => {
-                add_right(x, y, &mut queue, width);
-            }
-            (Dir::Up, '|') => {
-                add_up(x, y, &mut queue);
-            }
-            (Dir::Up, '.') => {
-                add_up(x, y, &mut queue);
-            }
-            (Dir::Up, '\\') => {
-                add_left(x, y, &mut queue);
-            }
-            (Dir::Up, '-') => {
-                add_left(x, y, &mut queue);
-                add_right(x, y, &mut queue, width);
-            }
-            (Dir::Left, '\\') => {
-                add_up(x, y, &mut queue);
-            }
-            (Dir::Left, '/') => {
-                add_down(x, y, &mut queue, height);
-            }
-            (Dir::Left, '|') => {
-                add_up(x, y, &mut queue);
-                add_down(x, y, &mut queue, height);
-            }
-            (Dir::Left, '.') => {
-                add_left(x, y, &mut queue);
-            }
-            (Dir::Left, '-') => {
-                add_left(x, y, &mut queue);
-            }
-            _ => unreachable!(),
-        }
+        next_dir(d, c)
+            .iter()
+            .filter_map(|&dir| get_next_cell(dir, x, y, width, height))
+            .for_each(|(dir, x, y)| queue.push((dir, x, y)));
     }
-
-    let mut ret = 0;
-
-    for y in 0..height {
-        for x in 0..width {
-            let visited = visit_list[y][x];
-            if visited.0 || visited.1 || visited.2 || visited.3 {
-                ret += 1;
-            }
-        }
+    let mut calc_set: HashSet<(usize, usize)> = HashSet::new();
+    for (_, x, y) in visit_list {
+        calc_set.insert((x, y));
     }
-
-    ret
+    calc_set.len() as u32
 }
 
 fn calc_1(data: &str) -> u32 {
