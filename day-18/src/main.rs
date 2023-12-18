@@ -101,17 +101,12 @@ fn data_to_coordinates_2(data: Vec<DataLine>) -> (Vec<(i32, i32)>, i32) {
 }
 
 fn calc_area(data: Vec<(i32, i32)>) -> i64 {
-    let mut a: i64 = 0;
-    for (d1, d2) in data.iter().tuple_windows::<(&(i32, i32), &(i32, i32))>() {
-        a += (d1.1 as i64 + d2.1 as i64) * (d1.0 as i64 - d2.0 as i64);
-    }
-
-    let d2 = data.first().unwrap();
-    let d1 = data.last().unwrap();
-
-    a += (d1.1 as i64 + d2.1 as i64) * (d1.0 as i64 - d2.0 as i64);
-
-    a.abs() / 2
+    data.iter()
+        .tuple_windows::<(&(i32, i32), &(i32, i32))>()
+        .map(|(d1, d2)| (d1.1 + d2.1) as i64 * (d1.0 - d2.0) as i64)
+        .sum::<i64>()
+        .abs()
+        / 2
 }
 
 fn proc_1(data: &str) -> u32 {
