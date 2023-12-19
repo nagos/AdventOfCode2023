@@ -12,7 +12,6 @@ use std::fs;
 type PartRule<'a> = (&'a str, char, u32, &'a str);
 type PartWorkfloq<'a> = (&'a str, Vec<PartRule<'a>>, &'a str);
 type PartData = (u32, u32, u32, u32);
-
 type PartRange = ((u32, u32), (u32, u32), (u32, u32), (u32, u32));
 
 fn main() {
@@ -111,11 +110,7 @@ fn proc_1(data: &str) -> u32 {
 
         loop {
             let workflow_rule = map.get(&workflow).unwrap();
-
-            let next_workflow = process_part(part, workflow_rule);
-
-            workflow = next_workflow;
-
+            workflow = process_part(part, workflow_rule);
             if workflow == "R" {
                 break;
             }
@@ -129,23 +124,24 @@ fn proc_1(data: &str) -> u32 {
     ret
 }
 
-fn apply_rule<'a>(range: PartRange, rule: &'a (Vec<PartRule>, &str)) -> Vec<(&'a str, PartRange)> {
-    let mut ret = vec![];
+fn extract_range<'a>(range: &'a mut PartRange, param: &str) -> &'a mut (u32, u32) {
+    match param {
+        "x" => &mut range.0,
+        "m" => &mut range.1,
+        "a" => &mut range.2,
+        "s" => &mut range.3,
+        _ => unreachable!(),
+    }
+}
 
+fn apply_rule<'a>(range: PartRange, rule: &'a (Vec<PartRule>, &str)) -> Vec<(&'a str, PartRange)> {
+    let (rules, last_rule) = rule;
+    let mut ret = vec![];
     let mut range = range;
 
-    for &(param, op, value, workflow) in &rule.0 {
-        let mut value = value;
-        let part_range = match param {
-            "x" => range.0,
-            "m" => range.1,
-            "a" => range.2,
-            "s" => range.3,
-            _ => unreachable!(),
-        };
-        if op == '>' {
-            value += 1;
-        }
+    for &(param, op, value, workflow) in rules {
+        let part_range = extract_range(&mut range, param);
+        let value = if op == '>' { value + 1 } else { value };
         let mut range_left = if value > part_range.0 {
             Some((part_range.0, part_range.1.min(value - 1)))
         } else {
@@ -162,32 +158,25 @@ fn apply_rule<'a>(range: PartRange, rule: &'a (Vec<PartRule>, &str)) -> Vec<(&'a
 
         if let Some(x) = range_left {
             let mut r = range;
-            *match param {
-                "x" => &mut r.0,
-                "m" => &mut r.1,
-                "a" => &mut r.2,
-                "s" => &mut r.3,
-                _ => unreachable!(),
-            } = x;
+            *extract_range(&mut r, param) = x;
             ret.push((workflow, r));
         }
 
         if let Some(x) = range_right {
-            let mut r = range;
-            *match param {
-                "x" => &mut r.0,
-                "m" => &mut r.1,
-                "a" => &mut r.2,
-                "s" => &mut r.3,
-                _ => unreachable!(),
-            } = x;
-            range = r;
+            *extract_range(&mut range, param) = x;
         }
     }
 
-    ret.push((rule.1, range));
+    ret.push((last_rule, range));
 
     ret
+}
+
+fn mult_range(range: PartRange) -> u64 {
+    (range.0 .1 + 1 - range.0 .0) as u64
+        * (range.1 .1 + 1 - range.1 .0) as u64
+        * (range.2 .1 + 1 - range.2 .0) as u64
+        * (range.3 .1 + 1 - range.3 .0) as u64
 }
 
 fn proc_2(data: &str) -> u64 {
@@ -204,15 +193,12 @@ fn proc_2(data: &str) -> u64 {
         let rule = map.get(&workflow.to_string()).unwrap();
         let new_ranges = apply_rule(range, rule);
 
-        for r in new_ranges {
-            if r.0 == "A" {
-                ret += (r.1 .0 .1 + 1 - r.1 .0 .0) as u64
-                    * (r.1 .1 .1 + 1 - r.1 .1 .0) as u64
-                    * (r.1 .2 .1 + 1 - r.1 .2 .0) as u64
-                    * (r.1 .3 .1 + 1 - r.1 .3 .0) as u64;
-            } else if r.0 == "R" {
+        for (new_workflow, new_range) in new_ranges {
+            if new_workflow == "A" {
+                ret += mult_range(new_range);
+            } else if new_workflow == "R" {
             } else {
-                ranges.push(r);
+                ranges.push((new_workflow, new_range));
             }
         }
     }
