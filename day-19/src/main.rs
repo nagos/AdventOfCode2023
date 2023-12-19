@@ -13,10 +13,14 @@ type PartRule<'a> = (&'a str, char, u32, &'a str);
 type PartWorkfloq<'a> = (&'a str, Vec<PartRule<'a>>, &'a str);
 type PartData = (u32, u32, u32, u32);
 
+type PartRange = ((u32, u32), (u32, u32), (u32, u32), (u32, u32));
+
 fn main() {
     let data = fs::read_to_string("data/input.txt").unwrap();
     let part_one = proc_1(&data);
     println!("Day 19 part one: {part_one}");
+    let part_two = proc_2(&data);
+    println!("Day 19 part two: {part_two}");
 }
 
 fn digit1_u32(input: &str) -> IResult<&str, u32> {
@@ -125,6 +129,97 @@ fn proc_1(data: &str) -> u32 {
     ret
 }
 
+fn apply_rule<'a>(range: PartRange, rule: &'a (Vec<PartRule>, &str)) -> Vec<(&'a str, PartRange)> {
+    let mut ret = vec![];
+
+    let mut range = range;
+
+    for &(param, op, value, workflow) in &rule.0 {
+        let mut value = value;
+        let part_range = match param {
+            "x" => range.0,
+            "m" => range.1,
+            "a" => range.2,
+            "s" => range.3,
+            _ => unreachable!(),
+        };
+        if op == '>' {
+            value += 1;
+        }
+        let mut range_left = if value > part_range.0 {
+            Some((part_range.0, part_range.1.min(value - 1)))
+        } else {
+            None
+        };
+        let mut range_right = if value < part_range.1 {
+            Some((part_range.0.max(value), part_range.1))
+        } else {
+            None
+        };
+        if op == '>' {
+            std::mem::swap(&mut range_left, &mut range_right);
+        }
+
+        if let Some(x) = range_left {
+            let mut r = range;
+            *match param {
+                "x" => &mut r.0,
+                "m" => &mut r.1,
+                "a" => &mut r.2,
+                "s" => &mut r.3,
+                _ => unreachable!(),
+            } = x;
+            ret.push((workflow, r));
+        }
+
+        if let Some(x) = range_right {
+            let mut r = range;
+            *match param {
+                "x" => &mut r.0,
+                "m" => &mut r.1,
+                "a" => &mut r.2,
+                "s" => &mut r.3,
+                _ => unreachable!(),
+            } = x;
+            range = r;
+        }
+    }
+
+    ret.push((rule.1, range));
+
+    ret
+}
+
+fn proc_2(data: &str) -> u64 {
+    let (_, (rules, _)) = parse(data).unwrap();
+
+    let map = build_map(rules);
+    let mut ret = 0;
+
+    let start = ((1, 4000), (1, 4000), (1, 4000), (1, 4000));
+
+    let mut ranges = vec![("in", start)];
+
+    while let Some((workflow, range)) = ranges.pop() {
+        let rule = map.get(&workflow.to_string()).unwrap();
+        let new_ranges = apply_rule(range, rule);
+
+        for r in new_ranges {
+            if r.0 == "A" {
+                ret += (r.1 .0 .1 + 1 - r.1 .0 .0) as u64
+                    * (r.1 .1 .1 + 1 - r.1 .1 .0) as u64
+                    * (r.1 .2 .1 + 1 - r.1 .2 .0) as u64
+                    * (r.1 .3 .1 + 1 - r.1 .3 .0) as u64;
+            } else if r.0 == "R" {
+            } else {
+                ranges.push(r);
+            }
+        }
+    }
+
+    ret
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -133,7 +228,6 @@ mod test {
     fn test_parse() {
         let data = fs::read_to_string("data/test.txt").unwrap();
         let (input, _data) = parse(&data).unwrap();
-        dbg!(input, _data);
         assert!(input.is_empty());
     }
 
@@ -142,5 +236,12 @@ mod test {
         let data = fs::read_to_string("data/test.txt").unwrap();
         let res = proc_1(&data);
         assert_eq!(res, 19114);
+    }
+
+    #[test]
+    fn test_proc2() {
+        let data = fs::read_to_string("data/test.txt").unwrap();
+        let res = proc_2(&data);
+        assert_eq!(res, 167409079868000);
     }
 }
