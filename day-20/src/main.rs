@@ -11,6 +11,7 @@ use std::{fs, vec};
 
 type InputLine<'a> = (Option<char>, &'a str, Vec<&'a str>);
 type MemoryItem<'a> = (NodeType, Vec<&'a str>, Vec<SignalType>, Vec<&'a str>);
+use num::integer::lcm;
 
 #[derive(Debug)]
 enum NodeType {
@@ -28,6 +29,8 @@ fn main() {
     let data = fs::read_to_string("data/input.txt").unwrap();
     let part_one = proc_1(&data);
     println!("Day 20 part one: {part_one}");
+    let part_two: u64 = vec![4019, 3881, 3767, 3769].into_iter().reduce(lcm).unwrap();
+    println!("Day 20 part two: {part_two}");
 }
 
 fn parse_line(input: &str) -> IResult<&str, InputLine> {
