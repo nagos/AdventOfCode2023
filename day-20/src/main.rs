@@ -6,7 +6,7 @@ use nom::{
     IResult,
 };
 
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::{fs, vec};
 
 type InputLine<'a> = (Option<char>, &'a str, Vec<&'a str>);
@@ -86,11 +86,11 @@ fn build_conn_map<'a>(data: &'a Vec<InputLine>) -> HashMap<&'a str, MemoryItem<'
 fn calc_1(m: &mut HashMap<&str, MemoryItem>, broadcaster: &InputLine) -> (u32, u32) {
     let mut count_low = 1;
     let mut count_high = 0;
-    let mut signal_queue = vec![];
+    let mut signal_queue = VecDeque::new();
     for &s in &broadcaster.2 {
-        signal_queue.insert(0, (s, SignalType::Low, broadcaster.1));
+        signal_queue.push_back((s, SignalType::Low, broadcaster.1));
     }
-    while let Some((next_node, signal, prev_node)) = signal_queue.pop() {
+    while let Some((next_node, signal, prev_node)) = signal_queue.pop_front() {
         if signal == SignalType::High {
             count_high += 1;
         } else {
@@ -107,7 +107,7 @@ fn calc_1(m: &mut HashMap<&str, MemoryItem>, broadcaster: &InputLine) -> (u32, u
                     }
 
                     for n in &node.1 {
-                        signal_queue.insert(0, (n, node.2[0], next_node));
+                        signal_queue.push_back((n, node.2[0], next_node));
                     }
                 }
             }
@@ -121,7 +121,7 @@ fn calc_1(m: &mut HashMap<&str, MemoryItem>, broadcaster: &InputLine) -> (u32, u
                     SignalType::High
                 };
                 for n in &node.1 {
-                    signal_queue.insert(0, (n, output_signal, next_node));
+                    signal_queue.push_back((n, output_signal, next_node));
                 }
             }
         }
