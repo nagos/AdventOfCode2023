@@ -218,8 +218,7 @@ fn get_next_node(node: &PathNode, dir: Dir, data: &[Vec<u32>]) -> PathNode {
 }
 
 #[allow(dead_code)]
-fn reconstruct_path(pos: NodePos, came_from: HashMap<NodePos, NodePos>) {
-    let mut pos = pos;
+fn reconstruct_path(mut pos: NodePos, came_from: HashMap<NodePos, NodePos>) {
     println!("{} {}", pos.x, pos.y);
 
     while let Some(new_pos) = came_from.get(&pos) {

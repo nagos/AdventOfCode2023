@@ -69,17 +69,16 @@ fn convert_item(item: u32, rule: TableItem) -> Option<u32> {
     }
 }
 
-fn apply_transform(seed: u32, blocks: &Vec<Vec<TableItem>>) -> u32 {
-    let mut value = seed;
+fn apply_transform(mut seed: u32, blocks: &Vec<Vec<TableItem>>) -> u32 {
     for block in blocks {
         for rule in block {
-            if let Some(res) = convert_item(value, *rule) {
-                value = res;
+            if let Some(res) = convert_item(seed, *rule) {
+                seed = res;
                 break;
             }
         }
     }
-    value
+    seed
 }
 
 fn proc_1(data: &str) -> u32 {

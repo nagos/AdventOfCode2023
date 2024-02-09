@@ -26,8 +26,7 @@ fn check_letters(line: &str) -> Option<u32> {
     None
 }
 
-fn proc_line(line: &str, words: bool) -> u32 {
-    let mut line = line;
+fn proc_line(mut line: &str, words: bool) -> u32 {
     let mut store = vec![];
     while !line.is_empty() {
         if let Some(d) = check_digit(line) {

@@ -134,10 +134,9 @@ fn extract_range<'a>(range: &'a mut PartRange, param: &str) -> &'a mut (u32, u32
     }
 }
 
-fn apply_rule<'a>(range: PartRange, rule: &'a (Vec<PartRule>, &str)) -> Vec<(&'a str, PartRange)> {
+fn apply_rule<'a>(mut range: PartRange, rule: &'a (Vec<PartRule>, &str)) -> Vec<(&'a str, PartRange)> {
     let (rules, last_rule) = rule;
     let mut ret = vec![];
-    let mut range = range;
 
     for &(param, op, value, workflow) in rules {
         let part_range = extract_range(&mut range, param);
@@ -157,9 +156,8 @@ fn apply_rule<'a>(range: PartRange, rule: &'a (Vec<PartRule>, &str)) -> Vec<(&'a
         }
 
         if let Some(x) = range_left {
-            let mut r = range;
-            *extract_range(&mut r, param) = x;
-            ret.push((workflow, r));
+            *extract_range(&mut range, param) = x;
+            ret.push((workflow, range));
         }
 
         if let Some(x) = range_right {
